@@ -138,7 +138,7 @@ class AppSpec extends FlatSpec with Matchers {
 
       // APP DEFINITION
       // combine DSL in a higher-kinded coproduct
-      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNil)      
+      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])      
       // FXNil corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
       type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
@@ -240,7 +240,7 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     /** let's combine interpreters into a big interpreter
-      * (F ~> R) >>: (G ~> R) => [t => F[t] :+: G[T] :+: CNIL] ~> R
+      * (F ~> R) >>: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
     val interpreter: Interpreter[HttpService.PRG, cats.Id] = HttpInteraction >>: HttpHandler >>: Logger >>: DBManager
 
