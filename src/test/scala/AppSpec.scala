@@ -177,6 +177,8 @@ class AppSpec extends FlatSpec with Matchers {
       type PRG[A] = (HttpInteract :@: HttpHandle :@@: DBService.PRG)#Cop[A]
 
       // server program
+      // this is the worst case: recursive call so need to help scalac a lot
+      // but in classic cases, it should be much more straighforward
       def serve(): Freek[PRG, Xor[RecvError, SendStatus]] =
         for {
           recv  <-  HttpInteract.receive().freek
