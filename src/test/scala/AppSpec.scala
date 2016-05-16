@@ -9,7 +9,7 @@ import cats.{~>, Id}
 
 import scala.concurrent._
 
-import cats.derived._, functor._, legacy._
+// import cats.derived._, functor._, legacy._
 import cats.Functor
 
 import freek._
@@ -126,9 +126,6 @@ object Http {
 }
 
 class AppSpec extends FlatSpec with Matchers {
-  import shapeless._
-  import ops.coproduct.{Inject, Selector}
-  import Shapoyo._
 
   "ShapeApp" should "freek" in {
 

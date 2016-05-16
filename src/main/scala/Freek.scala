@@ -1,7 +1,7 @@
 package freek
 
-import shapeless.ops.coproduct.{Inject, Selector}
-import shapeless.{Coproduct, Inl, Inr, CNil, :+:, Poly1, Id, DepFn1}
+// import shapeless.ops.coproduct.{Inject, Selector}
+// import shapeless.{Coproduct, Inl, Inr, CNil, :+:, Poly1, Id, DepFn1}
 
 import cats.free.Free
 import cats.{Functor, ~>, Monad}
