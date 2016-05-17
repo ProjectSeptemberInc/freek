@@ -125,7 +125,38 @@ object Http {
   }
 }
 
+
 class AppSpec extends FlatSpec with Matchers {
+
+  /** weird this is not provided in cats apparently */
+  implicit val fc = new cats.Comonad[Function0] {
+    def extract[A](x: () => A): A = x()
+    def coflatMap[A, B](fa: () => A)(f: (() => A) => B): () => B = () => f(fa)
+    def map[A, B](fa: () => A)(f: A => B): () => B = () => f(fa())
+  }
+
+
+  // "foldMap" should "be stack safe" in {
+  //   trait FTestApi[A]
+  //   case class TB(i: Int) extends FTestApi[Int]
+
+  //   type FTest[A] = Free[FTestApi, A]
+
+  //   def tb(i: Int): FTest[Int] = Free.liftF(TB(i))
+
+  //   def a(i: Int): FTest[Int] = for {
+  //     j <- tb(i)
+  //     z <- if (j<10000000) a(j) else Free.pure[FTestApi, Int](j)
+  //   } yield z
+
+  //   def runner: FTestApi ~> Trampoline = new (FTestApi ~> Trampoline) {
+  //     def apply[A](fa: FTestApi[A]): Trampoline[A] = fa match {
+  //       case TB(i) => Trampoline.done(i+1)
+  //     }
+  //   }
+
+  //   assert(10000000 == a(0).foldMap(runner).run)
+  // }
 
   "ShapeApp" should "freek" in {
 
@@ -145,7 +176,7 @@ class AppSpec extends FlatSpec with Matchers {
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek
           res  <- FindById(id).freek
-          _    <- Log.debug("Search result:"+res).freek
+          // _    <- Log.debug("Search result:"+res).freek
         } yield (res)
     }
 
@@ -180,7 +211,7 @@ class AppSpec extends FlatSpec with Matchers {
         for {
           recv  <-  HttpInteract.receive().freek
           _     <-  Log.info("HttpReceived Request:"+recv).freek
-          res     <-  (recv match {
+          res   <-  (recv match {
                       case Xor.Left(err) => HttpInteract.stop(Xor.left(err)).freek
 
                       case Xor.Right(req) => 
@@ -243,24 +274,20 @@ class AppSpec extends FlatSpec with Matchers {
       */
     val interpreter: Interpreter[HttpService.PRG, cats.Id] = HttpInteraction >>: HttpHandler >>: Logger >>: DBManager
 
-    /** weird this is not provided in cats apparently */
-    implicit val fc = new cats.Comonad[Function0] {
-      def extract[A](x: () => A): A = x()
-      def coflatMap[A, B](fa: () => A)(f: (() => A) => B): () => B = () => f(fa)
-      def map[A, B](fa: () => A)(f: A => B): () => B = () => f(fa())
-    }
-
     /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
       def apply[A](a: cats.Id[A]) = Trampoline.done(a)
     }
 
     // execute final program as a simple free with combined interpreter composed with a trampoline
-    HttpService.serve().free.foldMap(Trampolined compose interpreter.nat).run
+    try {
+      HttpService.serve().free.foldMap(Trampolined compose interpreter.nat).run
+    } catch {
+      case e:Throwable => e.printStackTrace()
+    }
   }
 
-
-
+}
 
 
 
@@ -300,5 +327,5 @@ class AppSpec extends FlatSpec with Matchers {
     // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[G, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]
 
 
-}
+
 

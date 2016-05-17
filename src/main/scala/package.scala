@@ -10,8 +10,8 @@ package object freek {
     implicit subCop: SubCop[C, D]
   ): Freek[D, A] = {
 
-    def nat[F[_] <: CoproductK[_], G[_] <: CoproductK[_]](implicit subCop: SubCop[F, G]) = new (F ~> G) {
-      def apply[A](fa: F[A]): G[A] = subCop(fa)
+    val nat = new (C ~> D) {
+      def apply[A](fa: C[A]): D[A] = subCop(fa)
     }
 
     new Freek(freek.free.mapSuspension(nat))
