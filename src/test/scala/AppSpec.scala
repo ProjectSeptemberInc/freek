@@ -151,7 +151,7 @@ class AppSpec extends FlatSpec with Matchers {
       type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
 
       /** the program */
-      def findById(id: String): Freek[PRG, Xor[DBError, Entity]] = 
+      def findById(id: String): Free[PRG, Xor[DBError, Entity]] = 
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
           res  <- FindById(id).freek[PRG]
@@ -167,7 +167,7 @@ class AppSpec extends FlatSpec with Matchers {
 
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct 
-      def handle(req: HttpReq): Freek[PRG, HttpResp] = req.url match {
+      def handle(req: HttpReq): Free[PRG, HttpResp] = req.url match {
         case "/foo" =>
           for {
             dbRes <-  DBService.findById("foo").expand[PRG]
@@ -186,7 +186,7 @@ class AppSpec extends FlatSpec with Matchers {
       // server program
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
-      def serve(): Freek[PRG, Xor[RecvError, SendStatus]] =
+      def serve(): Free[PRG, Xor[RecvError, SendStatus]] =
         for {
           recv  <-  HttpInteract.receive().freek[PRG]
           _     <-  Log.info("HttpReceived Request:"+recv).freek[PRG]
@@ -259,9 +259,10 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     // execute final program as a simple free with combined interpreter composed with a trampoline
-    HttpService.serve().free.foldMap(Trampolined compose interpreter.nat).run
+    HttpService.serve().foldMap(Trampolined compose interpreter.nat).run
     println(HttpInteraction.i)
   }
+
 
   // "free with mapSuspension" should "be stack safe" in {
   //   trait FTestApi[A]

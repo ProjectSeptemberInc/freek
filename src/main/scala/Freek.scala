@@ -7,7 +7,7 @@ import cats.free.Free
 import cats.{Functor, ~>, Monad}
 
 /** Free wrapper using Higher-Kind Coproduct to combine effects F[_] */
-case class Freek[F[_] <: CoproductK[_], A](free: Free[F, A]) extends AnyVal {
+/*case class Freek[F[_] <: CoproductK[_], A](free: Free[F, A]) extends AnyVal {
 
   def flatMap[B](f: A => Freek[F, B]): Freek[F, B] = new Freek(
     free.flatMap { a =>
@@ -44,16 +44,21 @@ case class Freek[F[_] <: CoproductK[_], A](free: Free[F, A]) extends AnyVal {
   //   def apply[A](ga: F[A]): merge.Out[A] = merge.fromLeft(ga)
   // } 
 
-}
+}*/
 
 object Freek {
 
-  def apply[F[_], A](fa: F[A]): Freek[ConsK[F, CNilK, ?], A] = {
-    new Freek[ConsK[F, CNilK, ?], A](
-      Free.liftF(Inlk(fa))
-    )
+  def apply[F[_], A](fa: F[A]): Free[ConsK[F, CNilK, ?], A] = {
+    Free.liftF(Inlk(fa))
   }
 
+  def expand[F[_] <: CoproductK[_], Super[_] <: CoproductK[_], A](free: Free[F, A])(
+    implicit sub: SubCop[F, Super]
+  ): Free[Super, A] = free.mapSuspension(
+    new (F ~> Super) {
+      def apply[A](ga: F[A]): Super[A] = sub(ga)
+    }
+  )
 }
 
 
