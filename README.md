@@ -148,15 +148,17 @@ It is the operation:
 (DB.DSL ~> Id combine Log.DSL) ~> Id => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
 ```
 
-> **Nice isn't it? But no, it doesn't work ouf of the box :(**
+Nice isn't it?
 
->- Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
+### But doesn't work ouf of the box :(**
 
->`t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
+- Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
 
->- Combining interpreters like that doesn't work
+`t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
 
->- As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
+- Combining interpreters like that doesn't work
+
+- As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
 
 
 ## Freek, freer yet simple Free to combine your DSL seamlessly
