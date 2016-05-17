@@ -136,11 +136,11 @@ val interpreter: F ~> Id = DBManager combine Logger
 findById(XXX).foldMap(interpreter).run
 ```
 
-#### what is `F[_]` now?
+#### What is `F[_]` now?
 
 Our `type PRG[A] = DB.DSL[A] :+: Log.DSL[t] :+: CNil` naturally!
 
-#### what is `combine`?
+#### What is `combine`?
 
 It is the operation:
 
@@ -148,17 +148,17 @@ It is the operation:
 (DB.DSL ~> Id combine Log.DSL) ~> Id => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
 ```
 
-Nice isn't it?
+> **Nice isn't it?**
 
-### But doesn't work ouf of the box :(**
+> **But doesn't work ouf of the box**
 
-- Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
+> - Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
 
-`t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
+> `t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
 
-- Combining interpreters like that doesn't work
+> - Combining interpreters like that doesn't work
 
-- As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
+> - As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
 
 
 ## Freek, freer yet simple Free to combine your DSL seamlessly
