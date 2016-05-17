@@ -2,7 +2,7 @@ package freek
 
 /** Higher-Kinded Coproduct (exactly like shapeless Coproduct but higher-kinded)
   *
-  * Using shapeless syntax, it represents a M[t] = F[t] :+: G[t] :+: H[t] :+: CNil
+  * Using shapeless syntax, it represents a M[t] = F[t] :+: G[t] :+: H[t] :+: CNilk[t]
   */ 
 sealed trait CoproductK[+A]
 

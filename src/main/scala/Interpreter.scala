@@ -3,7 +3,7 @@ package freek
 import cats.~>
 
 /** helper to combine natural transformations
-  * (F ~> R >>: G ~> R >>: H ~> R) gives (F :@: G :@: H :@: CNilK ~> R)
+  * (F ~> R :@: G ~> R:@: H ~> R) gives (F :@: G :@: H :@: CNilK ~> R)
   */
 class Interpreter[C[_] <: CoproductK[_], R[_]](
   val nat: C ~> R
