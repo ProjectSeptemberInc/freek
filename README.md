@@ -1,4 +1,4 @@
-## Freek, freer yet simple Free to combine your DSL seamlessly
+## Freek, a freaky simple Free to combine your DSL seamlessly
 
 ### Motivations
 
@@ -161,7 +161,7 @@ It is the operation:
 > - As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
 
 
-## Freek, freer yet simple Free to combine your DSL seamlessly
+## Freek, a freaky simple Free to combine your DSL seamlessly
 
 Freek is not much, just a few helpers to make previous use-case straightforward.
 
@@ -295,6 +295,8 @@ val interpreter: Interpreter[PRG, Id] = Logger :@: DBManager
 DBService.findById(XXX).foldMap(interpreter.nat)
 
 ```
+
+Deeper sample can be found in [AppSpec](https://github.com/ProjectSeptemberInc/freek/blob/master/src/test/scala/AppSpec.scala)
 
 
 > By the way, all of that is also called
