@@ -1,30 +1,30 @@
-# Freek
+# Freek, freer yet simple Free to combine your DSL seamlessly
 
 ## The simple Free enhance for effects combining
 
 ### Motivations
 
-At [ProjectSeptember](www.projectseptember.com), we love typesafe & functional programming.
+> At [ProjectSeptember](www.projectseptember.com), we love typesafe & functional programming.
 
 We also like the concept of `Free Monad` which decouples completely the description of your program from its execution.
 
 Free has a cost in terms of performance & short-term structures allocation but in our domain, IO is much more the bottleneck than these aspects so we can use those concepts without remorse.
 
-We also believe current implementations can be improved progressively using theoretical and even brutal compiler optimizations. So we want to push those concepts further and further.
+We also believe current implementations can be improved progressively using theoretical and even more brutal tools like compiler plugin/optimizations. So we want to push those concepts further and further.
 
 In Cats & Scalaz, `Free[F, A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/container `F[_]` in a `Free[F, A]` which is great.
 
-Free is often associated to effects too and there are also interesting newer approaches in Scala world:
+Free is often associated to effects management and there are also interesting newer approaches in Scala world:
 
-- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for freek). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time...
+- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for freek). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
 
 - [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... next step
 
-- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's more an experiment for now showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow (or not :))
+- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow (or not :))
 
-> But for now, `Free` starts to enter in mind of people so let's try to use it as is with a few enhancements.
+> But for now, `Free` starts to enter in mind of people so we want to use it as is (with a few enhancements).
 
-So in general, you want to use simple DSL like:
+In general, you want to use simple DSL like:
 
 ```scala
 
@@ -77,20 +77,19 @@ object DBService {
 }
 ```
 
-#### What is this `F` here?
+#### What is this `F[_]` here?
 
-Logically, it's combining `Log.DSL[_]` and `DB.DSL[_]`, right?
-But how?
-We could represent that using Shapeless Coproduct
+Logically, it's a sort of combination of `Log.DSL[_]` and `DB.DSL[_]`, right?
+We could think about a _(Shapeless)_ Coproduct
 
 ```
 // Log.DSL or DB.DSL
 t => DB.DSL[A] :+: Log.DSL[t] :+: CNil
 ```
 
-`A` is the type returned by `FindById` ie `Xor[DBError, Entity]`
+Please note that `A` is the type returned by `FindById` ie `Xor[DBError, Entity]`
 
-So we have:
+So in scala gibberish, we would like to write:
 
 ```scala
 // Pseudo scala code
@@ -104,7 +103,7 @@ def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
   } yield (res)
 ```
 
-Now we want to execute this program, right?
+Now we want to execute this program...
 
 First, we need interpreters in the shape of natural transformations
 
@@ -127,33 +126,36 @@ object DBManager extends (DB.DSL ~> Id) {
 }
 ```
 
-Finally we want to execute our `findById` program using those interpreters.
-That is done using `foldMap`
+Then we want to execute our `findById` program using those interpreters.
+That is done using `foldMap`:
 
 ```scala
 // Pseudo scala code
 val interpreter: F ~> Id = DBManager combine Logger
-findById(...).foldMap(interpreter).run
+findById(XXX).foldMap(interpreter).run
 ```
 
-but what is `F[_]` here?
+#### what is `F[_]` now?
+
 Our `type PRG[A] = DB.DSL[A] :+: Log.DSL[t] :+: CNil` naturally!
 
-and `combine` is the operation:
+#### what is `combine`?
+
+It is the operation:
 
 ```scala
 (DB.DSL ~> Id combine Log.DSL) ~> Id => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
 ```
 
-#### Nice isn't it? But no, it doesn't work ouf of the box :(
+> **Nice isn't it? But no, it doesn't work ouf of the box :(**
 
-- Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
+>- Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
 
-`t => F[t] :+: (t => G[t] :+: CNil)` isn't `t => F[t] :+: G[t] :+: CNil`
+>`t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
 
-- Combining interpreters like that doesn't work
+>- Combining interpreters like that doesn't work
 
-- As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
+>- As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
 
 
 ## Freek, freer yet simple Free to combine your DSL seamlessly
@@ -167,10 +169,10 @@ Here are the ingredients of it:
 This is a specialized implementation of Shapeless Coproduct for higher-kinded structures allowing:
 
 ```
-t => F[t] :@: (t => G[t] :@: CNilK[t])` is `t => F[t] :@: G[t] :@: CNilK[t]
+t => F[t] :@: (t => G[t] :@: CNilK[t])` IS `t => F[t] :@: G[t] :@: CNilK[t]
 ```
 
-Naturally, the type is a bit more complicated than simpler version so there are a few helpers to allow building things with a nice syntax.
+Naturally, the type is a bit more complicated than simple Coproduct. But don't worry, there are a few helpers to allow building things with a nice syntax.
 
 In Freek, you would write it like that:
 
@@ -181,7 +183,7 @@ type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
 ### `.freek[PRG]`
 
 You are manipulating `DSL` but you want them to become Free to be able to bind them in a monadic flow.
-But not any Free, you want a Free of your `PRG` which combines all your DSL.
+But not any kind of Free: you want a Free of your `PRG` which combines all your DSL.
 
 Freek makes it straighforward using `.freek[PRG]` which lifts your nice little `DSL[A]` into a super-powerful `Free[PRG, A]`.
 
@@ -198,7 +200,7 @@ def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
 
 ### Interpreters combining
 
-Using `CoproductK`, it is also able to combine several natural transformations of a DSL into natural transformation of `CoproductK` of those DSL.
+Using `CoproductK`, Freek is also able to combine several natural transformations of a DSL into one natural transformation of `CoproductK` of those DSL.
 
 ```
 val interpreter: PRG ~> Id = DBManager :@: Logger
