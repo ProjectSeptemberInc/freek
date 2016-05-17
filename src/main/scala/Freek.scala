@@ -7,13 +7,11 @@ import cats.free.Free
 import cats.{Functor, ~>, Monad}
 
 /** Free wrapper using Higher-Kind Coproduct to combine effects F[_] */
-class Freek[F[_] <: CoproductK[_], A](val free: Free[F, A]) {
+case class Freek[F[_] <: CoproductK[_], A](free: Free[F, A]) extends AnyVal {
 
-  def flatMap[G[_] <: CoproductK[_], B](f: A => Freek[G, B])(
-    implicit merge: MergeCopHK[F, G]
-  ): Freek[merge.Out, B] = new Freek(
-    free.mapSuspension(natF[G]).flatMap { a =>
-      f(a).free.mapSuspension(natG[G])
+  def flatMap[B](f: A => Freek[F, B]): Freek[F, B] = new Freek(
+    free.flatMap { a =>
+      f(a).free
     }
   )
 
@@ -21,13 +19,30 @@ class Freek[F[_] <: CoproductK[_], A](val free: Free[F, A]) {
     free.map(f)
   )
 
-  private def natG[G[_] <: CoproductK[_]](implicit merge: MergeCopHK[F, G]) = new (G ~> merge.Out) {
-    def apply[A](ga: G[A]): merge.Out[A] = merge.fromRight(ga)
-  }
+  def expand[Super[_] <: CoproductK[_]](
+    implicit sub: SubCop[F, Super]
+  ): Freek[Super, A] = new Freek(free.mapSuspension(
+    new (F ~> Super) {
+      def apply[A](ga: F[A]): Super[A] = sub(ga)
+    }
+  ))
 
-  private def natF[G[_] <: CoproductK[_]](implicit merge: MergeCopHK[F, G]) = new (F ~> merge.Out) {
-    def apply[A](ga: F[A]): merge.Out[A] = merge.fromLeft(ga)
-  } 
+  // Funny fact: this is not stacksafe due to recursive call of mapSuspension
+  // def flatMap[G[_] <: CoproductK[_], B](f: A => Freek[G, B])(
+  //   implicit merge: MergeCopHK[F, G]
+  // ): Freek[merge.Out, B] = new Freek(
+  //   free.mapSuspension(natF[G]).flatMap { a =>
+  //     f(a).free.mapSuspension(natG[G])
+  //   }
+  // )
+
+  // private def natG[G[_] <: CoproductK[_]](implicit merge: MergeCopHK[F, G]) = new (G ~> merge.Out) {
+  //   def apply[A](ga: G[A]): merge.Out[A] = merge.fromRight(ga)
+  // }
+
+  // private def natF[G[_] <: CoproductK[_]](implicit merge: MergeCopHK[F, G]) = new (F ~> merge.Out) {
+  //   def apply[A](ga: F[A]): merge.Out[A] = merge.fromLeft(ga)
+  // } 
 
 }
 

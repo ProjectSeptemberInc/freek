@@ -136,28 +136,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-  // "foldMap" should "be stack safe" in {
-  //   trait FTestApi[A]
-  //   case class TB(i: Int) extends FTestApi[Int]
-
-  //   type FTest[A] = Free[FTestApi, A]
-
-  //   def tb(i: Int): FTest[Int] = Free.liftF(TB(i))
-
-  //   def a(i: Int): FTest[Int] = for {
-  //     j <- tb(i)
-  //     z <- if (j<10000000) a(j) else Free.pure[FTestApi, Int](j)
-  //   } yield z
-
-  //   def runner: FTestApi ~> Trampoline = new (FTestApi ~> Trampoline) {
-  //     def apply[A](fa: FTestApi[A]): Trampoline[A] = fa match {
-  //       case TB(i) => Trampoline.done(i+1)
-  //     }
-  //   }
-
-  //   assert(10000000 == a(0).foldMap(runner).run)
-  // }
-
+  
   "ShapeApp" should "freek" in {
 
     /** Declare programs */
@@ -174,55 +153,55 @@ class AppSpec extends FlatSpec with Matchers {
       /** the program */
       def findById(id: String): Freek[PRG, Xor[DBError, Entity]] = 
         for {
-          _    <- Log.debug("Searching for entity id:"+id).freek
-          res  <- FindById(id).freek
-          // _    <- Log.debug("Search result:"+res).freek
+          _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
+          res  <- FindById(id).freek[PRG]
+          _    <- Log.debug("Search result:"+res).freek[PRG]
         } yield (res)
     }
 
     object HttpService {
       import Http._
 
+      /** Combining DSL in a type alias */
+      type PRG[A] = (HttpInteract :@: HttpHandle :@@: DBService.PRG)#Cop[A]
+
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct 
-      def handle(req: HttpReq): Freek[(HttpHandle :@@: DBService.PRG)#Cop, HttpResp] = req.url match {
+      def handle(req: HttpReq): Freek[PRG, HttpResp] = req.url match {
         case "/foo" =>
           for {
-            dbRes <-  DBService.findById("foo")
+            dbRes <-  DBService.findById("foo").expand[PRG]
 
             resp  <-  HttpHandle.result(
                         dbRes match {
                           case Xor.Left(err) => HttpResp(status = InternalServerError)
                           case Xor.Right(e)   => HttpResp(status = Ok, body = e.toString)
                         }
-                      ).freek
+                      ).freek[PRG]
           } yield (resp)
 
-        case _ => HttpHandle.result(HttpResp(status = InternalServerError)).freek
+        case _ => HttpHandle.result(HttpResp(status = InternalServerError)).freek[PRG]
       }
-
-      /** Combining DSL in a type alias */
-      type PRG[A] = (HttpInteract :@: HttpHandle :@@: DBService.PRG)#Cop[A]
 
       // server program
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
       def serve(): Freek[PRG, Xor[RecvError, SendStatus]] =
         for {
-          recv  <-  HttpInteract.receive().freek
-          _     <-  Log.info("HttpReceived Request:"+recv).freek
-          res   <-  (recv match {
-                      case Xor.Left(err) => HttpInteract.stop(Xor.left(err)).freek
+          recv  <-  HttpInteract.receive().freek[PRG]
+          _     <-  Log.info("HttpReceived Request:"+recv).freek[PRG]
+          res   <-  recv match {
+                      case Xor.Left(err) => HttpInteract.stop(Xor.left(err)).freek[PRG]
 
                       case Xor.Right(req) => 
                         for {
                           resp  <-  handle(req)
-                          _     <-  Log.info("Sending Response:"+resp).freek
-                          ack   <-  HttpInteract.respond(resp).freek
+                          _     <-  Log.info("Sending Response:"+resp).freek[PRG]
+                          ack   <-  HttpInteract.respond(resp).freek[PRG]
                           res   <-  if(ack == Ack) serve()
-                                    else HttpInteract.stop(Xor.right(ack)).freek: Freek[PRG, Xor[RecvError, SendStatus]] //.map(_ => ()):Freek[App, Unit]
+                                    else HttpInteract.stop(Xor.right(ack)).freek[PRG]
                         } yield (res)
-                    }): Freek[PRG, Xor[RecvError, SendStatus]]
+                    }
         } yield (res)
 
     }
@@ -256,7 +235,7 @@ class AppSpec extends FlatSpec with Matchers {
       var i = 0
       def apply[A](a: Http.HttpInteract[A]) = a match {
         case Http.HttpReceive       => 
-          if(i < 1000) {
+          if(i < 5000) {
             i+=1
             Xor.right(Http.GetReq("/foo"))
           } else {
@@ -286,6 +265,45 @@ class AppSpec extends FlatSpec with Matchers {
       case e:Throwable => e.printStackTrace()
     }
   }
+
+  // "free with mapSuspension" should "be stack safe" in {
+  //   trait FTestApi[A]
+  //   case class TB(i: Int) extends FTestApi[Int]
+
+  //   trait FTestApi2[A]
+  //   case class TB2(i: Int) extends FTestApi2[Int]
+
+  //   def mapper: FTestApi ~> FTestApi2 = new (FTestApi ~> FTestApi2) {
+  //     def apply[A](fa: FTestApi[A]): FTestApi2[A] = fa match {
+  //       case TB(i) => TB2(i)
+  //     }
+  //   }
+
+  //   def mapper2: FTestApi2 ~> FTestApi = new (FTestApi2 ~> FTestApi) {
+  //     def apply[A](fa: FTestApi2[A]): FTestApi[A] = fa match {
+  //       case TB2(i) => TB(i)
+  //     }
+  //   }
+
+  //   type FTest[A] = Free[FTestApi, A]
+  //   type FTest2[A] = Free[FTestApi2, A]
+
+  //   def tb(i: Int): FTest[Int] = Free.liftF(TB(i))
+
+
+  //   def a(i: Int): FTest2[Int] = for {
+  //     j <- tb(i).mapSuspension(mapper)
+  //     z <- (if (j<100000) a(j).mapSuspension(mapper2) else Free.pure[FTestApi, Int](j)).mapSuspension(mapper)
+  //   } yield z
+
+  //   val runner: FTestApi2 ~> Trampoline = new (FTestApi2 ~> Trampoline) {
+  //     def apply[A](fa: FTestApi2[A]): Trampoline[A] = fa match {
+  //       case TB2(i) => Trampoline.done(i+1)
+  //     }
+  //   }
+
+  //   assert(100000 == a(0).foldMap(runner).run)
+  // }
 
 }
 
