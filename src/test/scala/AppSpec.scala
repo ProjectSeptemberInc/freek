@@ -235,7 +235,7 @@ class AppSpec extends FlatSpec with Matchers {
       var i = 0
       def apply[A](a: Http.HttpInteract[A]) = a match {
         case Http.HttpReceive       => 
-          if(i < 5000) {
+          if(i < 10000) {
             i+=1
             Xor.right(Http.GetReq("/foo"))
           } else {
@@ -251,7 +251,7 @@ class AppSpec extends FlatSpec with Matchers {
     /** let's combine interpreters into a big interpreter
       * (F ~> R) >>: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
-    val interpreter: Interpreter[HttpService.PRG, cats.Id] = HttpInteraction >>: HttpHandler >>: Logger >>: DBManager
+    val interpreter: Interpreter[HttpService.PRG, cats.Id] = HttpInteraction :@: HttpHandler :@: Logger :@: DBManager
 
     /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
@@ -259,11 +259,8 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     // execute final program as a simple free with combined interpreter composed with a trampoline
-    try {
-      HttpService.serve().free.foldMap(Trampolined compose interpreter.nat).run
-    } catch {
-      case e:Throwable => e.printStackTrace()
-    }
+    HttpService.serve().free.foldMap(Trampolined compose interpreter.nat).run
+    println(HttpInteraction.i)
   }
 
   // "free with mapSuspension" should "be stack safe" in {
