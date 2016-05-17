@@ -1,6 +1,4 @@
-# Freek, freer yet simple Free to combine your DSL seamlessly
-
-## The simple Free enhance for effects combining
+## Freek, freer yet simple Free to combine your DSL seamlessly
 
 ### Motivations
 
@@ -292,5 +290,12 @@ val interpreter: Interpreter[PRG, Id] = Logger :@: DBManager
 DBService.findById(XXX).foldMap(interpreter.nat)
 
 ```
+
+
+> By the way, all of that is also called
+
+#### COMPILE-TIME DEPENDENCY INJECTION
+
+;););)
 
 THE END...
