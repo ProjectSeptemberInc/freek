@@ -22,7 +22,9 @@ Free is often associated to effects management and there are also interesting ne
 
 > But for now, `Free` starts to enter in mind of people so we want to use it as is (with a few enhancements).
 
-In general, you want to use simple DSL like:
+Here is what you want to do in general with Free:
+
+### Building DSL
 
 ```scala
 
@@ -60,7 +62,7 @@ object DB {
 
 ```
 
-... and you want to build simple programs like:
+### Building simple programs
 
 ```scala
 object DBService {
@@ -78,6 +80,7 @@ object DBService {
 #### What is this `F[_]` here?
 
 Logically, it's a sort of combination of `Log.DSL[_]` and `DB.DSL[_]`, right?
+
 We could think about a _(Shapeless)_ Coproduct
 
 ```
@@ -85,9 +88,9 @@ We could think about a _(Shapeless)_ Coproduct
 t => DB.DSL[A] :+: Log.DSL[t] :+: CNil
 ```
 
-Please note that `A` is the type returned by `FindById` ie `Xor[DBError, Entity]`
+> Please note that `A` is the type returned by `FindById` ie `Xor[DBError, Entity]`
 
-So in scala gibberish, we would like to write:
+### The program again
 
 ```scala
 // Pseudo scala code
@@ -101,7 +104,7 @@ def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
   } yield (res)
 ```
 
-Now we want to execute this program...
+### Executing the program
 
 First, we need interpreters in the shape of natural transformations
 
