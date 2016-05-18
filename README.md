@@ -2,7 +2,7 @@
 
 ### Motivations
 
-> At [ProjectSeptember](www.projectseptember.com), we love typesafe & functional programming.
+> At [ProjectSeptember](http://www.projectseptember.com), we love typesafe & functional programming.
 
 We also like the concept of `Free Monad` which decouples completely the description of your program from its execution.
 
@@ -145,7 +145,7 @@ Our `type PRG[A] = DB.DSL[A] :+: Log.DSL[t] :+: CNil` naturally!
 It is the operation:
 
 ```scala
-(DB.DSL ~> Id combine Log.DSL) ~> Id => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
+(DB.DSL ~> Id combine Log.DSL ~> Id) => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
 ```
 
 > **Nice isn't it?**
