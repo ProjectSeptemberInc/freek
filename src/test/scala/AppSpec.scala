@@ -147,24 +147,15 @@ class AppSpec extends FlatSpec with Matchers {
 
   "ShapeApp" should "freek" in {
 
-    /** Declare programs */
 
     object KVSService {
       import KVS._
 
-      // APP DEFINITION
-      // combine DSL in a higher-kinded coproduct
-      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
-      // FXNil corresponds to a higher-kinded CNil or no-effect combinator
-      // without it, it's impossible to build to higher-kinded coproduct in a clea way
       type PRG[A] = (KVS.DSL[String,String,?] :@: FXNil)#Cop[A]
 
-      /** the program */
-      def findById(id: String): Free[PRG, String] =
+      def findById(id: String) =
         for {
-          _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
-          res  <- Get(id).freek[PRG]
-          _    <- Log.debug("Search result:"+res).freek[PRG]
+          res  <- Get[String,String](id).freek[PRG]
         } yield (res)
     }
 
