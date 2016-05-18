@@ -42,11 +42,19 @@ object DB {
   // DB DSL
   type Entity = Map[String, String]
 
-  sealed trait DBError 
+  sealed trait DBError
   case object NotFound extends DBError
 
   sealed trait DSL[A]
   case class FindById(id: String) extends DSL[Xor[DBError, Entity]]
+
+}
+
+object KVS{
+
+  sealed trait DSL[K,V,E]
+  case class Get[K,V](key: K) extends DSL[K,V,V]
+  case class Put[K,V](key: K, value: V) extends DSL[K,V,Unit]
 
 }
 
@@ -136,22 +144,42 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-  
+
   "ShapeApp" should "freek" in {
 
     /** Declare programs */
+
+    object KVSService {
+      import KVS._
+
+      // APP DEFINITION
+      // combine DSL in a higher-kinded coproduct
+      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
+      // FXNil corresponds to a higher-kinded CNil or no-effect combinator
+      // without it, it's impossible to build to higher-kinded coproduct in a clea way
+      type PRG[A] = (KVS.DSL[String,String,?] :@: FXNil)#Cop[A]
+
+      /** the program */
+      def findById(id: String): Free[PRG, String] =
+        for {
+          _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
+          res  <- Get(id).freek[PRG]
+          _    <- Log.debug("Search result:"+res).freek[PRG]
+        } yield (res)
+    }
+
     object DBService {
       import DB._
 
       // APP DEFINITION
       // combine DSL in a higher-kinded coproduct
-      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])      
+      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
       // FXNil corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
       type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
 
       /** the program */
-      def findById(id: String): Free[PRG, Xor[DBError, Entity]] = 
+      def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
           res  <- FindById(id).freek[PRG]
@@ -166,7 +194,7 @@ class AppSpec extends FlatSpec with Matchers {
       type PRG[A] = (HttpInteract :@: HttpHandle :@@: DBService.PRG)#Cop[A]
 
       // Handle action
-      // :@@: combines a F[_] with an existing higher-kinded coproduct 
+      // :@@: combines a F[_] with an existing higher-kinded coproduct
       def handle(req: HttpReq): Free[PRG, HttpResp] = req.url match {
         case "/foo" =>
           for {
@@ -193,7 +221,7 @@ class AppSpec extends FlatSpec with Matchers {
           res   <-  recv match {
                       case Xor.Left(err) => HttpInteract.stop(Xor.left(err)).freek[PRG]
 
-                      case Xor.Right(req) => 
+                      case Xor.Right(req) =>
                         for {
                           resp  <-  handle(req)
                           _     <-  Log.info("Sending Response:"+resp).freek[PRG]
@@ -234,7 +262,7 @@ class AppSpec extends FlatSpec with Matchers {
     object HttpInteraction extends (Http.HttpInteract ~> cats.Id) {
       var i = 0
       def apply[A](a: Http.HttpInteract[A]) = a match {
-        case Http.HttpReceive       => 
+        case Http.HttpReceive       =>
           if(i < 10000) {
             i+=1
             Xor.right(Http.GetReq("/foo"))
@@ -341,7 +369,3 @@ class AppSpec extends FlatSpec with Matchers {
     // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[I, CNilK, ?], ConsK[F, ConsK[G, ConsK[I, CNilK, ?], ?], ?]]]
     // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[F, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]
     // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[G, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]
-
-
-
-
