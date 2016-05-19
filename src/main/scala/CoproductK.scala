@@ -4,17 +4,17 @@ package freek
   *
   * Using shapeless syntax, it represents a M[t] = F[t] :+: G[t] :+: H[t] :+: CNilk[t]
   */ 
-sealed trait CoproductK[+A]
+sealed trait CoproductK[A] extends Product with Serializable
 
 // sealed trait CNilK[A] extends CoproductK[A]
-case class CNilK[+A]() extends CoproductK[A]
+sealed trait CNilK[A] extends CoproductK[A]
 
-trait ConsK[H[_], L[_] <: CoproductK[_], A] extends CoproductK[A]
+sealed trait ConsK[H[_], L[_] <: CoproductK[_], A] extends CoproductK[A]
 final case class Inlk[H[_], T[_] <: CoproductK[_], A](head : H[A]) extends ConsK[H, T, A]
 final case class Inrk[H[_], T[_] <: CoproductK[_], A](tail : T[A]) extends ConsK[H, T, A]
 
 
-trait ContainsHK[L[_] <: CoproductK[_], H[_]] {
+trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
   type R[_] <: CoproductK[_]
 
   def extract[A](la: L[A]): Option[H[A]]
@@ -29,16 +29,16 @@ object ContainsHK extends LowerContainsHK {
   def apply[L[_] <: CoproductK[_], H[_]]
     (implicit containsHK: ContainsHK[L, H]): Aux[L, H, containsHK.R] = containsHK
 
-  implicit def singleton[H[_]]: Aux[ConsK[H, CNilK, ?], H, CNilK] =
-    new ContainsHK[ConsK[H, CNilK, ?], H] {
+  implicit def singleton[H[_], H1[t] <: H[t]]: Aux[ConsK[H, CNilK, ?], H1, CNilK] =
+    new ContainsHK[ConsK[H, CNilK, ?], H1] {
       type R[t] = CNilK[t]
 
-      def extract[A](la: ConsK[H, CNilK, A]): Option[H[A]] = la match {
-        case Inlk(h) => Some(h)
+      def extract[A](la: ConsK[H, CNilK, A]): Option[H1[A]] = la match {
+        case Inlk(h) => Some(h.asInstanceOf[H1[A]])
         case Inrk(_) => None
       }
 
-      def build[A](ha: H[A]): ConsK[H, CNilK, A] = Inlk(ha)
+      def build[A](ha: H1[A]): ConsK[H, CNilK, A] = Inlk(ha.asInstanceOf[H[A]])
     }
 
 }
@@ -74,7 +74,7 @@ trait LowerContainsHK {
 }
 
 
-trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] {
+trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
   type Out[_] <: CoproductK[_]
 
   def apply[A](ha: L[A]): Out[A]
@@ -133,7 +133,7 @@ trait LowerMergeOneRightHK2 {
       }
 }
 
-trait MergeCopHK[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
+trait MergeCopHK[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] extends Serializable {
   type Out[_] <: CoproductK[_]
 
   def fromLeft[A](la: L[A]): Out[A]
@@ -181,11 +181,14 @@ trait LowerMergeCopHK {
 
 
 
-trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
+trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] extends Serializable {
   def apply[A](l: L[A]): L2[A]
 }
 
 object SubCop {
+
+  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
+    (implicit subCop: SubCop[L, R]): SubCop[L, R] = subCop
 
   implicit def single[H[_], L[_] <: CoproductK[_]](
     implicit contains: ContainsHK[L, H]

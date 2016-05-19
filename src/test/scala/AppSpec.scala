@@ -52,10 +52,12 @@ object DB {
 
 object KVS{
 
-  sealed trait DSL[K,V,E]
-  case class Get[K,V](key: K) extends DSL[K,V,V]
-  case class Put[K,V](key: K, value: V) extends DSL[K,V,Unit]
+  sealed trait DSL[K, V, E]
+  case class Get[K, V](key: K) extends DSL[K, V, V]
+  case class Put[K, V](key: K, value: V) extends DSL[K, V, Unit]
 
+  def get[K, V](key: K): DSL[K, V, V] = Get(key)
+  def put[K, V](key: K, value: V): DSL[K, V, Unit] = Put(key, value)
 }
 
 
@@ -151,12 +153,16 @@ class AppSpec extends FlatSpec with Matchers {
     object KVSService {
       import KVS._
 
-      type PRG[A] = (KVS.DSL[String,String,?] :@: FXNil)#Cop[A]
+      type PRG[A] = (KVS.DSL[String, String, ?] :@: FXNil)#Cop[A]
 
-      def findById(id: String) =
+      def typed[A](f: A): Unit = ???
+      typed[KVS.DSL[String, String, String]](Get[String, String]("toto"))
+
+      def update[A, B](id: String, f: String => String): Free[PRG, Unit] =
         for {
-          res  <- Get[String,String](id).freek[PRG]
-        } yield (res)
+          res  <- KVS.get[String, String](id).freek[PRG]
+          _    <- KVS.put[String, String](id, f(res)).freek[PRG]
+        } yield (())
     }
 
     object DBService {
