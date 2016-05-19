@@ -11,6 +11,8 @@ package object freek {
 
     @inline def freek[C[_] <: CoproductK[_]](implicit sub: SubCop[ConsK[F, CNilK, ?], C]): Free[C, A] =
       Freek.expand[ConsK[F, CNilK, ?], C, A](freek0)
+
+    @inline def upcast[T](implicit f: F[A] <:< T): T = fa
   }
 
   implicit class Expand[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {

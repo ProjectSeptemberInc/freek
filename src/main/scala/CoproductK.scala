@@ -29,22 +29,17 @@ object ContainsHK extends LowerContainsHK {
   def apply[L[_] <: CoproductK[_], H[_]]
     (implicit containsHK: ContainsHK[L, H]): Aux[L, H, containsHK.R] = containsHK
 
-  implicit def singleton[H[_], H1[t] <: H[t]]: Aux[ConsK[H, CNilK, ?], H1, CNilK] =
-    new ContainsHK[ConsK[H, CNilK, ?], H1] {
-      type R[t] = CNilK[t]
+  // implicit def singleton[H[_]]: Aux[ConsK[H, CNilK, ?], H, CNilK] =
+  //   new ContainsHK[ConsK[H, CNilK, ?], H] {
+  //     type R[t] = CNilK[t]
 
-      def extract[A](la: ConsK[H, CNilK, A]): Option[H1[A]] = la match {
-        case Inlk(h) => Some(h.asInstanceOf[H1[A]])
-        case Inrk(_) => None
-      }
+  //     def extract[A](la: ConsK[H, CNilK, A]): Option[H[A]] = la match {
+  //       case Inlk(h) => Some(h)
+  //       case Inrk(_) => None
+  //     }
 
-      def build[A](ha: H1[A]): ConsK[H, CNilK, A] = Inlk(ha.asInstanceOf[H[A]])
-    }
-
-}
-
-
-trait LowerContainsHK {
+  //     def build[A](ha: H[A]): ConsK[H, CNilK, A] = Inlk(ha)
+  //   }
 
   implicit def head[H[_], L[_] <: CoproductK[_]]: ContainsHK.Aux[ConsK[H, L, ?], H, L] =
     new ContainsHK[ConsK[H, L, ?], H] {
@@ -57,6 +52,11 @@ trait LowerContainsHK {
 
       def build[A](ha: H[A]): ConsK[H, L, A] = Inlk(ha)
     }
+
+}
+
+
+trait LowerContainsHK {
 
   implicit def corec[H[_], K[_], L[_] <: CoproductK[_], RT[_] <: CoproductK[_]](
     implicit next: ContainsHK.Aux[L, H, RT]
@@ -74,7 +74,7 @@ trait LowerContainsHK {
 }
 
 
-trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
+trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] {
   type Out[_] <: CoproductK[_]
 
   def apply[A](ha: L[A]): Out[A]
@@ -133,7 +133,7 @@ trait LowerMergeOneRightHK2 {
       }
 }
 
-trait MergeCopHK[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] extends Serializable {
+trait MergeCopHK[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
   type Out[_] <: CoproductK[_]
 
   def fromLeft[A](la: L[A]): Out[A]
@@ -181,7 +181,7 @@ trait LowerMergeCopHK {
 
 
 
-trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] extends Serializable {
+trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
   def apply[A](l: L[A]): L2[A]
 }
 
