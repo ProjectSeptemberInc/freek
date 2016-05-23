@@ -22,4 +22,8 @@ package object freek {
 
   implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[ConsK[F, CNilK, ?], R] = Interpreter(nat)
 
+
+  type :/:[H[_], T <: FX] = :@:[H, T]
+
+  type :\/:[H[_], T[_] <: CoproductK[_]] = :@@:[H, T]
 }

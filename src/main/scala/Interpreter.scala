@@ -19,6 +19,8 @@ class Interpreter[C[_] <: CoproductK[_], R[_]](
     }
   )
 
+  def :|:[F[_]](f: F ~> R): Interpreter[ConsK[F, C, ?], R] = :@:(f)
+
 }
 
 object Interpreter {
