@@ -151,7 +151,7 @@ class AppSpec extends FlatSpec with Matchers {
     object KVSService {
       import KVS._
 
-      type PRG[A] = (KVS.DSL[String, String, ?] :/: FXNil)#Cop[A]
+      type PRG[A] = (KVS.DSL[String, String, ?] :|: FXNil)#Cop[A]
 
       def update[A, B](id: String, f: String => String): Free[PRG, Unit] =
         for {
@@ -168,7 +168,7 @@ class AppSpec extends FlatSpec with Matchers {
       // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
       // FXNil corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
-      type PRG[A] = (Log.DSL :/: DB.DSL :/: FXNil)#Cop[A]
+      type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
 
       /** the program */
       def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
@@ -183,7 +183,7 @@ class AppSpec extends FlatSpec with Matchers {
       import Http._
 
       /** Combining DSL in a type alias */
-      type PRG[A] = (HttpInteract :/: HttpHandle :\/: DBService.PRG)#Cop[A]
+      type PRG[A] = (HttpInteract :|: HttpHandle :||: DBService.PRG)#Cop[A]
 
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct
@@ -284,6 +284,17 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
+  // "freek" should "manage option" in {
+  //   sealed trait Foo[A]
+  //   case object Bar extends Foo[Option[Int]]
+  //   case object Bar2 extends Foo[Unit]
+
+  //   type PRG[A] = (Foo :|: Option :|: FXNil)#Cop
+
+  //   val prg = for {
+  //     _ <- 
+  //   }
+  // }
   // "free with mapSuspension" should "be stack safe" in {
   //   trait FTestApi[A]
   //   case class TB(i: Int) extends FTestApi[Int]
