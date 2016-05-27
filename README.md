@@ -172,7 +172,7 @@ Here are the ingredients of it:
 This is a specialized implementation of Shapeless Coproduct for higher-kinded structures allowing:
 
 ```
-t => F[t] :@: (t => G[t] :@: CNilK[t])` IS `t => F[t] :@: G[t] :@: CNilK[t]
+t => F[t] :|: (t => G[t] :|: CNilK[t])` IS `t => F[t] :|: G[t] :|: CNilK[t]
 ```
 
 Naturally, the type is a bit more complicated than simple Coproduct. But don't worry, there are a few helpers to allow building things with a nice syntax.
@@ -180,7 +180,7 @@ Naturally, the type is a bit more complicated than simple Coproduct. But don't w
 In Freek, you would write it like that:
 
 ```
-type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
+type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
 ```
 
 ### `.freek[PRG]`
@@ -206,7 +206,7 @@ def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
 Using `CoproductK`, Freek is also able to combine several natural transformations of a DSL into one natural transformation of `CoproductK` of those DSL.
 
 ```
-val interpreter: PRG ~> Id = DBManager :@: Logger
+val interpreter: PRG ~> Id = DBManager :|: Logger
 ```
 
 ### SI2712 patch
@@ -260,7 +260,7 @@ object DB {
 object DBService {
   import DB._
 
-  type PRG[A] = (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A]
+  type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
 
   /** the program */
   def findById(id: String): Free[PRG, Xor[DBError, Entity]] = 
@@ -290,7 +290,7 @@ object DBManager extends (DB.DSL ~> Id) {
 
 //////////////////////////////////////////////////////////////////////////
 // Execution
-val interpreter: Interpreter[PRG, Id] = Logger :@: DBManager
+val interpreter: Interpreter[PRG, Id] = Logger :|: DBManager
 
 DBService.findById(XXX).foldMap(interpreter.nat)
 
