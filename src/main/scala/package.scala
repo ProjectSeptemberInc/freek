@@ -4,7 +4,7 @@ import cats.~>
 import cats.free.Free
 
 /** a few implicit conversions */
-package object freek {
+package object freek extends HK {
 
   implicit class ToFreek[F[_], A](val fa: F[A]) extends AnyVal {
     @inline def freek0: Free[ConsK[F, CNilK, ?], A] = Freek(fa)
