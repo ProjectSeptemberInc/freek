@@ -8,6 +8,7 @@ import cats.data.Xor
 import cats.{~>, Id}
 
 import scala.concurrent._
+import scala.concurrent.duration._
 
 // import cats.derived._, functor._, legacy._
 import cats.Functor
@@ -144,7 +145,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-
+/*
   "ShapeApp" should "freek" in {
 
 
@@ -283,18 +284,46 @@ class AppSpec extends FlatSpec with Matchers {
     println(HttpInteraction.i)
   }
 
+*/
+  "freek" should "manage option" in {
+    import cats.std.future._
+    import cats.data.OptionT
+    import ExecutionContext.Implicits.global
+    import hk._
 
-  // "freek" should "manage option" in {
-  //   sealed trait Foo[A]
-  //   case object Bar extends Foo[Option[Int]]
-  //   case object Bar2 extends Foo[Unit]
 
-  //   type PRG[A] = (Foo :|: Option :|: FXNil)#Cop
+    sealed trait Foo[A]
+    final case class Bar(s: String) extends Foo[Option[Int]]
+    final case object Bar2 extends Foo[Unit]
 
-  //   val prg = for {
-  //     _ <- 
-  //   }
-  // }
+    type PRG[A] = (Foo :|: Log.DSL :|: FXNil)#Cop[A]
+
+    val prg = for {
+      i     <- Bar("5").freek[PRG].liftT
+      _     <- Log.info("toto " + i).freek[PRG].liftT[Option]
+      _     <- Bar2.freek[PRG].liftT[Option]
+    } yield (())
+
+    val logger2FutureSkip = new (Log.DSL ~> Future) {
+      def apply[A](a: Log.DSL[A]) = a match {
+        case Log.LogMsg(lvl, msg) =>
+          Future.successful(println(s"$lvl $msg"))
+      }
+    }
+
+    val foo2FutureSkip = new (Foo ~> Future) {
+      def apply[A](a: Foo[A]) = a match {
+        case Bar(s) => Future { Some(s.toInt) } // if you put None here, it stops prg before Log
+        case Bar2 => Future(())
+      }
+    }
+
+    val interpreters = foo2FutureSkip :|: logger2FutureSkip
+
+    Await.result(prg.value.foldMap(interpreters.nat), 10.seconds)
+  
+  }
+
   // "free with mapSuspension" should "be stack safe" in {
   //   trait FTestApi[A]
   //   case class TB(i: Int) extends FTestApi[Int]
