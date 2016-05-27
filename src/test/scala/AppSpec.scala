@@ -145,7 +145,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-/*
+
   "ShapeApp" should "freek" in {
 
 
@@ -284,7 +284,7 @@ class AppSpec extends FlatSpec with Matchers {
     println(HttpInteraction.i)
   }
 
-*/
+
   "freek" should "manage option" in {
     import cats.std.future._
     import cats.data.OptionT
