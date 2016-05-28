@@ -285,7 +285,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-  "freek" should "manage option" in {
+  "freek" should "manage monad transformers" in {
     import cats.std.future._
     import cats.data.OptionT
     import ExecutionContext.Implicits.global
@@ -326,80 +326,48 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  // "free with mapSuspension" should "be stack safe" in {
-  //   trait FTestApi[A]
-  //   case class TB(i: Int) extends FTestApi[Int]
+  "freek" should "manage monadic onions of result types" in {
+    import cats.std.future._
+    import cats.std.option._
+    import cats.std.option._
+    import cats.data.OptionT
+    import ExecutionContext.Implicits.global
+    // import hk._
 
-  //   trait FTestApi2[A]
-  //   case class TB2(i: Int) extends FTestApi2[Int]
+    sealed trait Foo[A]
+    final case class Bar(s: String) extends Foo[Option[Int]]
+    final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
+    final case object Bar3 extends Foo[Unit]
 
-  //   def mapper: FTestApi ~> FTestApi2 = new (FTestApi ~> FTestApi2) {
-  //     def apply[A](fa: FTestApi[A]): FTestApi2[A] = fa match {
-  //       case TB(i) => TB2(i)
-  //     }
-  //   }
+    type PRG[A] = (Foo :|: Log.DSL :|: FXNil)#Cop[A]
+    type S = Option :&: Xor[String, ?] :&: SNil
 
-  //   def mapper2: FTestApi2 ~> FTestApi = new (FTestApi2 ~> FTestApi) {
-  //     def apply[A](fa: FTestApi2[A]): FTestApi[A] = fa match {
-  //       case TB2(i) => TB(i)
-  //     }
-  //   }
+    val prg = for {
+      i     <- Bar("5").freek[PRG].onionF[S]
+      i     <- Bar2(i).freek[PRG].onionF[S]
+      _     <- Log.info("toto " + i).freek[PRG].onion[S]
+      _     <- Bar3.freek[PRG].onion[S]
+    } yield (())
 
-  //   type FTest[A] = Free[FTestApi, A]
-  //   type FTest2[A] = Free[FTestApi2, A]
+    val logger2FutureSkip = new (Log.DSL ~> Future) {
+      def apply[A](a: Log.DSL[A]) = a match {
+        case Log.LogMsg(lvl, msg) =>
+          Future.successful(println(s"$lvl $msg"))
+      }
+    }
 
-  //   def tb(i: Int): FTest[Int] = Free.liftF(TB(i))
+    val foo2FutureSkip = new (Foo ~> Future) {
+      def apply[A](a: Foo[A]) = a match {
+        case Bar(s) => Future { Some(s.toInt) } // if you put None here, it stops prg before Log
+        case Bar2(i) => Future(Xor.right(i))
+        case Bar3 => Future.successful(())
+      }
+    }
 
+    val interpreters = foo2FutureSkip :|: logger2FutureSkip
 
-  //   def a(i: Int): FTest2[Int] = for {
-  //     j <- tb(i).mapSuspension(mapper)
-  //     z <- (if (j<100000) a(j).mapSuspension(mapper2) else Free.pure[FTestApi, Int](j)).mapSuspension(mapper)
-  //   } yield z
-
-  //   val runner: FTestApi2 ~> Trampoline = new (FTestApi2 ~> Trampoline) {
-  //     def apply[A](fa: FTestApi2[A]): Trampoline[A] = fa match {
-  //       case TB2(i) => Trampoline.done(i+1)
-  //     }
-  //   }
-
-  //   assert(100000 == a(0).foldMap(runner).run)
-  // }
+    Await.result(prg.free.foldMap(interpreters.nat), 10.seconds)
+  
+  }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // trait F[A]
-    // trait G[A]
-    // trait I[A]
-    // type H[A] = ConsK[G, ConsK[F, CNilK, ?], A]
-    // ContainsHK[H, G]
-    // ContainsHK[H, F]
-    // implicitly[ContainsHK.Aux[H, G, ConsK[F, CNilK, ?]]]
-    // implicitly[ContainsHK.Aux[H, F, ConsK[G, CNilK, ?]]]
-    // ContainsHK[ConsK[F, CNilK, ?], F]
-
-    // implicitly[MergeOneRightHK.Aux[ConsK[F, CNilK, ?], G, ConsK[F, ConsK[G, CNilK, ?], ?]]]
-    // implicitly[MergeOneRightHK.Aux[ConsK[G, ConsK[F, CNilK, ?], ?], F, ConsK[G, ConsK[F, CNilK, ?], ?]]]
-    // implicitly[MergeOneRightHK.Aux[ConsK[G, ConsK[F, CNilK, ?], ?], I, ConsK[G, ConsK[F, ConsK[I, CNilK, ?], ?], ?]]]
-
-    // implicitly[MergeCopHK.Aux[ConsK[F, CNilK, ?], ConsK[G, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]
-    // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[I, CNilK, ?], ConsK[F, ConsK[G, ConsK[I, CNilK, ?], ?], ?]]]
-    // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[F, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]
-    // implicitly[MergeCopHK.Aux[ConsK[F, ConsK[G, CNilK, ?], ?], ConsK[G, CNilK, ?], ConsK[F, ConsK[G, CNilK, ?], ?]]]

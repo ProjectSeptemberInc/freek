@@ -1,6 +1,6 @@
 lazy val commonSettings = Seq(
     organization := "com.projectseptember"
-  , version := "0.2.5"
+  , version := "0.2.6"
   , resolvers ++= Seq(
       Resolver.mavenLocal
     , Resolver.sonatypeRepo("releases")

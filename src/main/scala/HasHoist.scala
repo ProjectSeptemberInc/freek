@@ -40,24 +40,6 @@ object HasHoist {
   */
 trait HK {
 
-  /**
-    * Finds the right Monad Transformer (OptionT, ListT, EitherT) wrapped in a precepte using HasHoist typeclass
-    * and lifts the Precepte into a MonadTransformer instance. 
-    */
-  // implicit class toTrans[C[_] <: CoproductK[_], G[_], A](m: Free[C, G[A]]) {
-
-  //   def liftT(implicit hh: HasHoist[G]): hh.T[λ[t => Free[C, t]], A] =
-  //     hh.lift[λ[t => Free[C, t]], A](m)
-
-  // }
-
-  // implicit class toTrans0[C[_] <: CoproductK[_], A](m: Free[C, A]) {
-
-  //   def liftT[G[_]](implicit hh: HasHoist[G]): hh.T[λ[t => Free[C, t]], A] =
-  //     hh.lift[λ[t => Free[C, t]], A](m)
-
-  // }
-
   implicit class toTrans1[F[_], G[_], A](m: F[G[A]]) {
 
     def liftT[G0[_]](implicit hh: HasHoist[G0], witness: F[G[A]] =:= F[G0[A]]): hh.T[F, A] =
@@ -73,12 +55,6 @@ trait HK {
 
   }
 
-  // def trans2[C[_] <: CoproductK[_], G[_, _], A, B](
-  //   m: Free[C, G[A, B]]
-  // )(implicit hh: HasHoist[λ[t => G[A, t]]]): hh.T[λ[t => Free[C, t]], B] = {
-  //   type λ[α] = G[A, α]
-  //   trans(m)
-  // }
 
 }
 
