@@ -15,7 +15,9 @@ lazy val commonSettings = Seq(
   , libraryDependencies ++= Seq(
       "org.typelevel"   %% "cats"               % "0.5.0"
     , "com.milessabin"  % "si2712fix-library"   % "1.2.0"             cross CrossVersion.full
-    , "org.scalatest"   %  "scalatest_2.11"     % "2.1.3"             % "test"
+    , "org.scalatest"   %  "scalatest_2.11"     % "3.0.0-M7"          % "test"
+    , "org.typelevel"   %% "discipline"         % "0.4"               % "test"
+    , "org.typelevel"   %% "cats-laws"          % "0.5.0"
     )
 
 )

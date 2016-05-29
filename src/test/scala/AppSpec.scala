@@ -1,3 +1,6 @@
+package freek
+
+
 /**
   * Copyright 2014 Pascal Voitot (@mandubian)
   */
@@ -340,7 +343,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case object Bar3 extends Foo[Unit]
 
     type PRG[A] = (Foo :|: Log.DSL :|: FXNil)#Cop[A]
-    type S = Option :&: Xor[String, ?] :&: SNil
+    type S = Option :&: Xor[String, ?] :&: Bulb
 
     val prg = for {
       i     <- Bar("5").freek[PRG].onionF[S]

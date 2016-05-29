@@ -14,7 +14,7 @@ sealed trait :&:[H[_], T <: Onion] extends Onion {
   type Build[t] = H[T#Build[t]]
 }
 
-sealed trait SNil extends Onion {
+sealed trait Bulb extends Onion {
   type Build[t] = t
 }
 
@@ -34,8 +34,10 @@ trait Pointer[S <: Onion] {
 
 object Pointer {
 
-  implicit def nil = new Pointer[SNil] {
-    def point[A](a: A): SNil#Build[A] = a
+  def apply[S <: Onion](implicit pointer: Pointer[S]) = pointer 
+
+  implicit val bulb = new Pointer[Bulb] {
+    def point[A](a: A): Bulb#Build[A] = a
   }
 
   implicit def cons[H[_]:Applicative, T <: Onion](
@@ -76,8 +78,11 @@ trait Mapper[S <: Onion] {
 }
 
 object Mapper {
-  implicit def nil = new Mapper[SNil] {
-    def map[A, B](fa: SNil#Build[A])(f: A => B): SNil#Build[B] = f(fa)
+
+  def apply[S <: Onion](implicit mapper: Mapper[S]) = mapper 
+
+  implicit val bulb = new Mapper[Bulb] {
+    def map[A, B](fa: Bulb#Build[A])(f: A => B): Bulb#Build[B] = f(fa)
   }
 
   implicit def cons[H[_]:Functor, T <: Onion](
@@ -94,8 +99,10 @@ trait Traverser[S <: Onion] {
 
 object Traverser {
 
-  implicit def nil = new Traverser[SNil] {
-    def traverse[G[_]: Applicative, A, B](sa: SNil#Build[A])(f: A => G[B]): G[SNil#Build[B]] =
+  def apply[S <: Onion](implicit traverser: Traverser[S]) = traverser 
+
+  implicit val bulb = new Traverser[Bulb] {
+    def traverse[G[_]: Applicative, A, B](sa: Bulb#Build[A])(f: A => G[B]): G[Bulb#Build[B]] =
       f(sa)
   }
 
@@ -115,8 +122,11 @@ trait Binder[S <: Onion] {
 }
 
 object Binder {
-  implicit def nil = new Binder[SNil] {
-    def bind[A, B](fa: SNil#Build[A])(f: A => SNil#Build[B]): SNil#Build[B] = f(fa)
+
+  def apply[S <: Onion](implicit binder: Binder[S]) = binder 
+
+  implicit val nil = new Binder[Bulb] {
+    def bind[A, B](fa: Bulb#Build[A])(f: A => Bulb#Build[B]): Bulb#Build[B] = f(fa)
   }
 
   // H must be a Functor, a FlatMap & an Applicative (for traverse)
@@ -131,4 +141,34 @@ object Binder {
   }
 }
 
+
+@implicitNotFound("could not expand Onion ${S1} into Onion ${S2}; either ${S1} must be a sub-onion of ${S2}")
+trait Expander[S1 <: Onion, S2 <: Onion] {
+  def expand[A](s1: S1#Build[A]): S2#Build[A]
+}
+
+object Expander {
+
+  def apply[S1 <: Onion, S2 <: Onion](implicit expander: Expander[S1, S2]) = expander
+
+  implicit val bulb = new Expander[Bulb, Bulb] {
+    def expand[A](s1a: Bulb#Build[A]): Bulb#Build[A] = s1a
+  } 
+
+  // H must be a Functor, a FlatMap & an Applicative (for traverse)
+  implicit def first[H[_]:Functor, S1 <: Onion, S2 <: Onion](
+    implicit next: Expander[S1, S2]
+  ) = new Expander[H :&: S1, H :&: S2] {
+    def expand[A](sS1a: (H :&: S1)#Build[A]): (H :&: S2)#Build[A] =
+      Functor[H].map(sS1a){ S1a => next.expand(S1a) }
+  }
+
+  // H must be a Functor, a FlatMap & an Applicative (for traverse)
+  implicit def cons[H[_]:Applicative, S1 <: Onion, S2 <: Onion](
+    implicit next: Expander[S1, S2]
+  ) = new Expander[S1, H :&: S2] {
+    def expand[A](hs1a: S1#Build[A]): (H :&: S2)#Build[A] =      
+      Applicative[H].pure(next.expand(hs1a))
+  }
+}
 
