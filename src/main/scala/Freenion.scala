@@ -22,10 +22,10 @@ case class Freenion[F[_], S <: Onion, A](free: Free[F, S#Build[A]]) extends AnyV
 
 object Freenion extends FreenionInstances {
 
-  def onion[C[_], S <: Onion, A](fa: Free[C, A])(implicit pointer: Pointer[S]): Freenion[C, S, A] =
+  def onionF[C[_], S <: Onion, A](fa: Free[C, A])(implicit pointer: Pointer[S]): Freenion[C, S, A] =
     Freenion(fa.map (a => pointer.point(a)))
 
-  def onionF[C[_], S <: Onion, F[_], A](fa: Free[C, F[A]])(implicit lifter: Lifter[F, S]): Freenion[C, S, A] =
+  def onionT[C[_], S <: Onion, F[_], A](fa: Free[C, F[A]])(implicit lifter: Lifter[F, S]): Freenion[C, S, A] =
     Freenion(fa.map (fa => lifter.lift(fa)))
 
 }
@@ -57,15 +57,15 @@ trait FreenionHelpers {
 
   implicit class toOnionF[F[_], G[_], A](free: Free[F, G[A]]) {
 
-    def onionF[S <: Onion](implicit lifter: Lifter[G, S]): Freenion[F, S, A] =
-      Freenion.onionF(free)
+    def onionT[S <: Onion](implicit lifter: Lifter[G, S]): Freenion[F, S, A] =
+      Freenion.onionT(free)
 
   }
 
   implicit class toOnion[F[_], G[_], A](free: Free[F, A]) {
 
-    def onion[S <: Onion](implicit pointer: Pointer[S]): Freenion[F, S, A] =
-      Freenion.onion(free)
+    def onionF[S <: Onion](implicit pointer: Pointer[S]): Freenion[F, S, A] =
+      Freenion.onionF(free)
 
   }
 

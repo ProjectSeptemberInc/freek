@@ -346,10 +346,10 @@ class AppSpec extends FlatSpec with Matchers {
     type S = Option :&: Xor[String, ?] :&: Bulb
 
     val prg = for {
-      i     <- Bar("5").freek[PRG].onionF[S]
+      i     <- Bar("5").freek[PRG].onionT[S]
       i     <- Bar2(i).freek[PRG].onionF[S]
-      _     <- Log.info("toto " + i).freek[PRG].onion[S]
-      _     <- Bar3.freek[PRG].onion[S]
+      _     <- Log.info("toto " + i).freek[PRG].onionF[S]
+      _     <- Bar3.freek[PRG].onionF[S]
     } yield (())
 
     val logger2FutureSkip = new (Log.DSL ~> Future) {
