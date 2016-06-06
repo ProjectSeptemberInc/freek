@@ -1,5 +1,12 @@
 ## Freek, a freaky simple Free to combine your DSL seamlessly
 
+> Pere Villega wrote a really cool introduction to Freek before I could even move a finger and it's a really good one :D 
+>
+> http://perevillega.com/freek-and-free-monads
+>
+> Thanks a lot Pere
+
+
 ### Motivations
 
 > At [ProjectSeptember](http://www.projectseptember.com), we love typesafe & functional programming.
