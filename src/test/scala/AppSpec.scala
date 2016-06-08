@@ -187,13 +187,14 @@ class AppSpec extends FlatSpec with Matchers {
       import Http._
 
       /** Combining DSL in a type alias */
-      type PRG[A] = (HttpInteract :|: HttpHandle :||: DBService.PRG)#Cop[A]
+      type PRG[A] = (Log.DSL  :|: HttpInteract :|: HttpHandle :||: DBService.PRG)#Cop[A]
 
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct
       def handle(req: HttpReq): Free[PRG, HttpResp] = req.url match {
         case "/foo" =>
           for {
+            _     <-  Log.debug("/foo").freek[PRG]
             dbRes <-  DBService.findById("foo").expand[PRG]
 
             resp  <-  HttpHandle.result(
@@ -275,7 +276,7 @@ class AppSpec extends FlatSpec with Matchers {
     /** let's combine interpreters into a big interpreter
       * (F ~> R) >>: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
-    val interpreter: Interpreter[HttpService.PRG, cats.Id] = HttpInteraction :|: HttpHandler :|: Logger :|: DBManager
+    val interpreter = HttpInteraction :|: Logger :|: HttpHandler :|: DBManager
 
     /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
@@ -283,7 +284,7 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     // execute final program as a simple free with combined interpreter composed with a trampoline
-    HttpService.serve().foldMap(Trampolined compose interpreter.nat).run
+    HttpService.serve().interprete(interpreter andThen Trampolined).run
     println(HttpInteraction.i)
   }
 

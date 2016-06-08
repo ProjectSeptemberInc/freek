@@ -1,6 +1,6 @@
 import scala.language.implicitConversions
 
-import cats.~>
+import cats.{~>, Monad}
 import cats.free.Free
 
 /** a few implicit conversions */
@@ -15,9 +15,15 @@ package object freek extends HK with FreenionHelpers {
     @inline def upcast[T](implicit f: F[A] <:< T): T = fa
   }
 
-  implicit class Expand[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {
+  implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {
     @inline def expand[C[_] <: CoproductK[_]](implicit sub: SubCop[F, C]): Free[C, A] =
       Freek.expand[F, C, A](free)
+
+    def interprete[F2[_] <: CoproductK[_], G[_]: Monad](i: Interpreter[F2, G])(
+      implicit sub:SubCop[F, F2]
+    ): G[A] = free.foldMap(new (F ~> G) {
+      def apply[A](fa: F[A]): G[A] = i.nat(sub(fa))
+    })
   }
 
   implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[ConsK[F, CNilK, ?], R] = Interpreter(nat)
