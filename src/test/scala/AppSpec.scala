@@ -274,9 +274,9 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     /** let's combine interpreters into a big interpreter
-      * (F ~> R) >>: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
+      * (F ~> R) :+: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
-    val interpreter = HttpInteraction :|: Logger :|: HttpHandler :|: DBManager
+    val interpreter = HttpInteraction :&: Logger :&: HttpHandler :&: DBManager
 
     /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
@@ -324,9 +324,9 @@ class AppSpec extends FlatSpec with Matchers {
       }
     }
 
-    val interpreters = foo2FutureSkip :|: logger2FutureSkip
+    val interpreters = foo2FutureSkip :&: logger2FutureSkip
 
-    Await.result(prg.value.value.foldMap(interpreters.nat), 10.seconds)
+    Await.result(prg.value.value.interprete(interpreters), 10.seconds)
   
   }
 
@@ -339,38 +339,56 @@ class AppSpec extends FlatSpec with Matchers {
     // import hk._
 
     sealed trait Foo[A]
-    final case class Bar(s: String) extends Foo[Option[Int]]
-    final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
-    final case object Bar3 extends Foo[Unit]
+    final case class Foo1(s: String) extends Foo[Option[Int]]
+    final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
+    final case object Foo3 extends Foo[Unit]
+    final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
 
-    type PRG[A] = (Foo :|: Log.DSL :|: FXNil)#Cop[A]
-    type S = Option :&: Xor[String, ?] :&: Bulb
+    sealed trait Bar[A]
+    final case class Bar1(s: String) extends Bar[Option[String]]
+    final case class Bar2(i: Int) extends Bar[Xor[String, String]]
+
+    type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
+
+    type S = Xor[String, ?] :&: Option :&: Bulb
+
+    type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
 
     val prg = for {
-      i     <- Bar("5").freek[PRG].onionT[S]
-      i     <- Bar2(i).freek[PRG].onionF[S]
-      _     <- Log.info("toto " + i).freek[PRG].onionF[S]
-      _     <- Bar3.freek[PRG].onionF[S]
-    } yield (())
+      i     <- Foo1("5").freek[PRG].onionT[S]
+      i2    <- Foo2(i).freek[PRG].onionT[S]
+      _     <- Log.info("toto " + i).freek[PRG].onionT[S]
+      _     <- Foo3.freek[PRG].onionT[S]
+      s     <- Bar1(i2.toString).freek[PRG].onionT[S]
+      i3    <- Foo4(i2).freek[PRG].onionT[S]
+    } yield (i3)
 
-    val logger2FutureSkip = new (Log.DSL ~> Future) {
+    val logger2Future = new (Log.DSL ~> Future) {
       def apply[A](a: Log.DSL[A]) = a match {
         case Log.LogMsg(lvl, msg) =>
           Future.successful(println(s"$lvl $msg"))
       }
     }
 
-    val foo2FutureSkip = new (Foo ~> Future) {
+    val foo2Future = new (Foo ~> Future) {
       def apply[A](a: Foo[A]) = a match {
-        case Bar(s) => Future { Some(s.toInt) } // if you put None here, it stops prg before Log
-        case Bar2(i) => Future(Xor.right(i))
-        case Bar3 => Future.successful(())
+        case Foo1(s) => Future { Some(s.toInt) } // if you put None here, it stops prg before Log
+        case Foo2(i) => Future(Xor.right(i))
+        case Foo3 => Future.successful(())
+        case Foo4(i) => Future.successful(Xor.right(Some(i)))
       }
     }
 
-    val interpreters = foo2FutureSkip :|: logger2FutureSkip
+    val bar2Future = new (Bar ~> Future) {
+      def apply[A](a: Bar[A]) = a match {
+        case Bar1(s) => Future { Some(s) } // if you put None here, it stops prg before Log
+        case Bar2(i) => Future(Xor.right(i.toString))
+      }
+    }
 
-    Await.result(prg.free.foldMap(interpreters.nat), 10.seconds)
+    val interpreters = foo2Future :&: logger2Future :&: bar2Future
+
+    Await.result(prg.value.interprete(interpreters), 10.seconds)
   
   }
 

@@ -17,21 +17,23 @@ Free has a cost in terms of performance & short-term structures allocation but i
 
 We also believe current implementations can be improved progressively using theoretical and even more brutal tools like compiler plugin/optimizations. So we want to push those concepts further and further.
 
-In Cats & Scalaz, `Free[F, A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/container `F[_]` in a `Free[F, A]` which is great.
+In Cats & Scalaz, `Free[F[_], A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/DSL `F[_]` in a `Free[F, A]`.
 
-Free is often associated to effects management and there are also interesting newer approaches in Scala world:
+Free is often associated to effects management and in this context, there are also interesting newer approaches in Scala world:
 
-- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for freek). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
+- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for `freek`). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
 
-- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... next step
+- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... Next step of evangelization ;)
 
-- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow (or not :))
+- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow...
 
-> But for now, `Free` starts to enter in mind of people so we want to use it as is (with a few enhancements).
+> But for now, `Free` concept starts to enter in mind of people so we want to use it as is (with a few enhancements).
 
 Here is what you want to do in general with Free:
 
 ### Building DSL
+
+A DSL is a Domain Specific Language corresponding to the operation allowed by your business domain and describing it but not supposing how it will be executed.
 
 ```scala
 
@@ -50,6 +52,7 @@ object Log {
   /** just helpers */
   def debug(msg: String) = LogMsg(DebugLevel, msg)
   def info(msg: String) = LogMsg(InfoLevel, msg)
+  // ...
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,17 +67,24 @@ object DB {
 
   sealed trait DSL[A]
   case class FindById(id: String) extends DSL[Xor[DBError, Entity]]
-
+  // ...
 }
 
 ```
 
-### Building simple programs
+### Building simple programs using DSL
+
+Based on you DSL, you can build description of your program as sequence of operations/computations.
+Each computation will return a value when finished triggering the next step in the program. `Xor[DBError, Entity]` for `FindById` for example.
+
+Computations can have side-effects and in FP approaches, we tend to represent those with Monads and sequence monads into a sequence of computations using for-comprehensions.
+
+For example:
 
 ```scala
 object DBService {
 
-  /** Pseudo code */
+  // Pseudo code
   def findById(id: String): Free[F, A] = 
     for {
       _    <- Log.debug("Searching for entity id:"+id)
@@ -86,16 +96,14 @@ object DBService {
 
 #### What is this `F[_]` here?
 
-Logically, it's a sort of combination of `Log.DSL[_]` and `DB.DSL[_]`, right?
+Logically, as you program uses Logs & DB operations, it should be a sort of combination of `Log.DSL[_]` and `DB.DSL[_]`.?
 
-We could think about a _(Shapeless)_ Coproduct
+We could think about a _(Shapeless)_ Coproduct (A or B or C or ...)
 
 ```
-// Log.DSL or DB.DSL
-t => DB.DSL[A] :+: Log.DSL[t] :+: CNil
+// DB.DSL or Log.DSL
+t => DB.DSL[t] :+: Log.DSL[t] :+: CNil
 ```
-
-> Please note that `A` is the type returned by `FindById` ie `Xor[DBError, Entity]`
 
 ### The program again
 
@@ -113,34 +121,36 @@ def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
 
 ### Executing the program
 
-First, we need interpreters in the shape of natural transformations
+First, we need interpreters transforming every DSL combined in the `PRG` into an effectful computation. We can represent an interpreter by a natural transformation converting `DSL[A]` into a `Effectful[A]` where `Effectful` correspond the real execution performing eventual side-effects.
 
 ```scala
 //////////////////////////////////////////////////////////////////////////
 // Interpreters as simple TransNat
-object Logger extends (Log.DSL ~> Id) {
+object Logger extends (Log.DSL ~> Future) {
   def apply[A](a: Log.DSL[A]) = a match {
     case Log.LogMsg(lvl, msg) =>
-      println(s"$lvl $msg")
+      Future(println(s"$lvl $msg"))
   }
 }
 
-object DBManager extends (DB.DSL ~> Id) {
+object DBManager extends (DB.DSL ~> Future) {
   def apply[A](a: DB.DSL[A]) = a match {
     case DB.FindById(id) =>
-      println(s"DB Finding $id")
-      Xor.right(Map("id" -> id, "name" -> "toto"))
+      Future {
+        println(s"DB Finding $id")
+        Xor.right(Map("id" -> id, "name" -> "toto"))
+      }
   }
 }
 ```
 
 Then we want to execute our `findById` program using those interpreters.
-That is done using `foldMap`:
+Free monads come equipped with an operation called `foldMap`:
 
 ```scala
 // Pseudo scala code
-val interpreter: F ~> Id = DBManager combine Logger
-findById(XXX).foldMap(interpreter).run
+val interpreter: F ~> Future = DBManager combine Logger
+val f: Future[Xor[DBError, Entity]] = findById(XXX).foldMap(interpreter)
 ```
 
 #### What is `F[_]` now?
@@ -159,7 +169,7 @@ It is the operation:
 
 > **But doesn't work ouf of the box**
 
-> - Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures (or any other Coproducts I know).
+> - Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures `F[_]` (or any other Coproducts I know).
 
 > `t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
 
