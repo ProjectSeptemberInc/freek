@@ -284,7 +284,7 @@ class AppSpec extends FlatSpec with Matchers {
     }
 
     // execute final program as a simple free with combined interpreter composed with a trampoline
-    HttpService.serve().interprete(interpreter andThen Trampolined).run
+    HttpService.serve().interpret(interpreter andThen Trampolined).run
     println(HttpInteraction.i)
   }
 
@@ -326,7 +326,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val interpreters = foo2FutureSkip :&: logger2FutureSkip
 
-    Await.result(prg.value.value.interprete(interpreters), 10.seconds)
+    Await.result(prg.value.value.interpret(interpreters), 10.seconds)
   
   }
 
@@ -388,7 +388,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val interpreters = foo2Future :&: logger2Future :&: bar2Future
 
-    Await.result(prg.value.interprete(interpreters), 10.seconds)
+    Await.result(prg.value.interpret(interpreters), 10.seconds)
   
   }
 

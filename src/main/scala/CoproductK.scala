@@ -29,18 +29,6 @@ object ContainsHK extends LowerContainsHK {
   def apply[L[_] <: CoproductK[_], H[_]]
     (implicit containsHK: ContainsHK[L, H]): Aux[L, H, containsHK.R] = containsHK
 
-  // implicit def singleton[H[_]]: Aux[ConsK[H, CNilK, ?], H, CNilK] =
-  //   new ContainsHK[ConsK[H, CNilK, ?], H] {
-  //     type R[t] = CNilK[t]
-
-  //     def extract[A](la: ConsK[H, CNilK, A]): Option[H[A]] = la match {
-  //       case Inlk(h) => Some(h)
-  //       case Inrk(_) => None
-  //     }
-
-  //     def build[A](ha: H[A]): ConsK[H, CNilK, A] = Inlk(ha)
-  //   }
-
   implicit def head[H[_], L[_] <: CoproductK[_]]: ContainsHK.Aux[ConsK[H, L, ?], H, L] =
     new ContainsHK[ConsK[H, L, ?], H] {
       type R[t] = L[t]

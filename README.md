@@ -7,7 +7,16 @@
 > Thanks a lot Pere
 
 
-### Motivations
+## Current Version
+
+### v0.3.0:
+
+- replaced Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]`
+- provided new `interpret` function solving order/redundancy issues with DSL vs interpreters
+- renamed Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a sum between them, not a product of them
+
+
+## Motivations
 
 > At [ProjectSeptember](http://www.projectseptember.com), we love typesafe & functional programming.
 
@@ -178,53 +187,154 @@ It is the operation:
 > - As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
 
 
-## Freek, a freaky simple Free to combine your DSL seamlessly
+## Freek itself: a freaky simple Free to combine your DSL seamlessly
 
-Freek is not much, just a few helpers to make previous use-case straightforward.
+Freek is not so much, just a few helpers to make manipulating Free & DSL just straightforward.
 
-Here are the ingredients of it:
+Here are the helpers brought by Freek:
 
-### CoproductK
+### Combine your DSL(s) with operator `:|:` (OR)
 
-This is a specialized implementation of Shapeless Coproduct for higher-kinded structures allowing:
+This is a specialized implementation of Shapeless Coproduct for higher-kinded structures allowing to combine multiple DSL in one single.
 
-```
-t => F[t] :|: (t => G[t] :|: CNilK[t])` IS `t => F[t] :|: G[t] :|: CNilK[t]
-```
-
-Naturally, the type is a bit more complicated than simple Coproduct. But don't worry, there are a few helpers to allow building things with a nice syntax.
-
-In Freek, you would write it like that:
+Imagine you have the following DSL
 
 ```
-type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
+sealed trait Log[A]
+case class LogMsg(level: LogLevel, msg: String) extends DSL[Unit]
+object Log {
+  def debug(msg: String) = LogMsg(DebugLevel, msg)
+  def info(msg: String) = LogMsg(InfoLevel, msg)
+}
+
+sealed trait KVS[A]
+object KVS {
+  final case class Get(key: String) extends DSL[String]
+  final case class Put(key: String, value: String) extends DSL[Unit]
+}
+
+sealed trait File[A]
+object File {
+  final case class GetFile(name: String) extends DSL[File]
+  final case class DeleteFile(name: String) extends DSL[Unit]
+}
 ```
 
-### `.freek[PRG]`
+You want to build a program that manipulate the 4 DSL together meaning you program will use Log `or` DB `or` Foo `or` Bar DSL (Sum/Coproduct of DSL).
 
-You are manipulating `DSL` but you want them to become Free to be able to bind them in a monadic flow.
-But not any kind of Free: you want a Free of your `PRG` which combines all your DSL.
+In Freek, you would combine them like that:
 
-Freek makes it straighforward using `.freek[PRG]` which lifts your nice little `DSL[A]` into a super-powerful `Free[PRG, A]`.
+```
+type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
+```
+
+- `:|:` is a symbol but in Scala, there is no more elegant way to mix types...
+- `FXNil` is required to end this Coproduct
+- `#Cop[A]` builds the real hidden Coproduct type which is the ugly `CoproductK` that you don't really want to see in general.
+
+
+### `.freek[PRG]` to lift all DSL operations to `PRG` in for-comprehension
+
+Ok, now you're going to write a program with those DSL lifted into Free monads `Free[DSL[_], A]` using a classic for-comprehension.
+
+In a for-comprehension, each line should have the same type to compile so you need to lift all `Free[DSL[_], A]` to the common Free type `Free[PRG, A]`.
+
+The conversion `DSL[A] => Free[DSL, A] => Free[PRG, A]` can be done in a trivial way using `.freek[PRG]`.
 
 ```scala
+type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
 
-def findById(id: String): Free[PRG, Xor[DBError, Entity]] = 
+def program(id: String) = 
   for {
-    _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
-    res  <- FindById(id).freek[PRG]
-    _    <- Log.debug("Search result:"+res).freek[PRG]
-  } yield (res)
+    _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
+    name  <- KVS.Get(id).freek[PRG]
+    file  <- File.Get(name).freek[PRG]
+    _     <- Log.debug(s"Found file:$file").freek[PRG]
+  } yield (file)
 ```
 
+- Every line must be lifter to `PRG`
+- Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't perfect in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with terrible errors.
 
-### Interpreters combining
 
-Using `CoproductK`, Freek is also able to combine several natural transformations of a DSL into one natural transformation of `CoproductK` of those DSL.
+### Combine interpreters using operator `:&:` (AND)
+
+`program` just describe your sequence of operations but it doesn't execute it: it's just a data representation, a description of your computation.
+
+Now you need to _interpret_ this description into an effectful execution and this is done with `interpreters` in Freek.
+`Interpreters` in Freek are nothing else than NaturalTransformation/FunctionK `F[_] ~> G[_]` with some helpers to manipulate multipl combined DSL(s) defined above.
+
+Here we suppose, we use an async execution context based on Scala `Future` not to be too fancy.
+
+1. Define your interpreters per DSL
 
 ```
-val interpreter: PRG ~> Id = DBManager :|: Logger
+val LogInterpreter = new (Log ~> Future) {
+  def apply[A](a: Log[A]) = a match {
+    case Log.LogMsg(lvl, msg) =>
+      Future(println(s"$lvl $msg"))
+  }
+}
+
+val FileInterpreter = new (File ~> Future) {
+  def apply[A](a: DB[A]) = a match {
+    case File.Get(name) =>
+      Future {
+        FileManager.get(name)
+      }
+
+    case File.Delete(name) =>
+      Future {
+        FileManager.delete(name)
+      }
+  }
+}
+
+val KVSInterpreter = new (KVS ~> Future) {
+  val storage = ...
+
+  def apply[A](a: DB[A]) = a match {
+    case KVS.Get(id) =>
+      Future {
+        storage.get(id)
+      }
+    case KVS.Put(id, value) =>
+      Future {
+        storage.put(id, value)
+        ()
+      }
+  }
+}
+
 ```
+
+2. Combine interpreters into a big interpreter with `:&:`
+
+Being able to execute your `program` means you are able to interpret DSL `Log` and `KVS` and `File`.
+So you need an interpreter which is the sum of `KVSInterpreter` and `LogInterpreter` and `FileInterpreter`
+
+
+In Freek, here is how you define that:
+
+```
+val interpreter = KVSInterpreter :&: LogInterpreter :&: FileInterpreter
+```
+
+- Remark that there is no equivalent to `FXNil` at the end
+- `interpreter` is of type `Interpreter` which is just a wrapper around a `C ~> R`  where `C[_] <: CoproductK[_]`. If you want to access the underlying `PRG ~> Future`, just call `interpreter.nat`.
+
+### Execute your program using `interpret`
+
+`program` is just a `Free[PRG, A]` so you could use simply `foldMap` with your `interpreter.nat`.
+
+But Freek provides a smarter function called `interpret` that makes the order of DSL vs interpreters not relevant.
+
+```
+val fut = program.interpret(interpreter) // this returns a Future[Unit]
+```
+
+- 
+
 
 ### SI2712 patch
 
