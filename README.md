@@ -18,6 +18,8 @@
 - provides new `interpret` function solving order/redundancy issues with DSL vs interpreters
 - renames Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a sum between them, not a product of them
 
+It's published on bintray: https://bintray.com/projectseptemberinc/maven/freek/0.3.0/view
+
 ## Freek: a freaky simple Free to combine your DSL seamlessly
 
 Freek is just a few helpers & tricks to make it straightforward to manipulate Free & DSL without hiding it's a Free.
