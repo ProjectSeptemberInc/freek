@@ -435,27 +435,6 @@ val prg = for {
 Remark that `.oniontT[O]` is used in all cases to lift to `OnionT[Free, PRG, O, A]`
 
 <br/>
-#### `.freeko[PRG, O]`, the cherry on the cake
-
-Ok you have to write `.freek[PRG].onionT[O]` on each line which is boring...
-
-There is a shortcut called `.freeko[PRG, O]`
-
-
-```scala
-type PRG[A] = (Bar :|: Foo :|: Log.DSL :|: FXNil)#Cop[A]
-type O = Xor[String, ?] :&: Option :&: Bulb
-
-val prg = for {
-  i     <- Foo1("5").freeko[PRG, O]
-  i2    <- Foo2(i).freeko[PRG, O]
-  _     <- Log.info("toto " + i).freeko[PRG, O]
-  _     <- Foo3.freeko[PRG, O]
-  s     <- Bar1(i2.toString).freeko[PRG, O]
-  i3    <- Foo4(i2).freeko[PRG, O]
-} yield (i3)
-```
-
 #### Execute an OnionT with `.value`
 
 `prg` has type `OnionT[Free, PRG, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
