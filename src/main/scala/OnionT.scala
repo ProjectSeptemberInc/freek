@@ -69,6 +69,16 @@ object OnionT extends OnionTInstances {
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter.lift(fa) })
 
+  def liftT2[TC[_[_], _], F[_], S <: Onion, G[_], H[_], A](fa: TC[F, G[H[A]]])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , lifter: Lifter[λ[t => G[H[t]]], S]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    , traverser: Traverser[S]
+  ): OnionT[TC, F, S, A] =
+    OnionT(tcMonad.map(fa){ fa => lifter.lift(fa) })
+
 }
 
 trait OnionTInstances {
@@ -93,7 +103,22 @@ trait OnionTInstances {
 
 }
 
-trait OnionTHelpers extends OnionTHelpersLow {
+trait OnionTHelpers {
+
+  implicit class toOnionT2[TC[_[_], _], F[_], G[_], H[_], A](tc: TC[F, G[H[A]]]) {
+
+    def onionT[S <: Onion](
+    implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , lifter: Lifter[λ[t => G[H[t]]], S]
+      , pointer: Pointer[S]
+      , mapper: Mapper[S]
+      , binder: Binder[S]
+      , traverser: Traverser[S]
+    ): OnionT[TC, F, S, A] =
+      OnionT.liftT2(tc)
+
+  }
 
   implicit class toOnionT[TC[_[_], _], F[_], G[_], A](tc: TC[F, G[A]]) {
 
@@ -110,11 +135,7 @@ trait OnionTHelpers extends OnionTHelpersLow {
 
   }
 
-}
-
-trait OnionTHelpersLow {
-
-  implicit class toOnionP[TC[_[_], _], F[_], G[_], A](tc: TC[F, A]) {
+  implicit class toOnionP[TC[_[_], _], F[_], A](tc: TC[F, A]) {
 
     def onionT[S <: Onion](
     implicit 
@@ -127,5 +148,4 @@ trait OnionTHelpersLow {
       OnionT.liftP(tc)
 
   }
-
 }

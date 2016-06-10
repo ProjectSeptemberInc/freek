@@ -1,205 +1,62 @@
-## Freek, a freaky simple Free to combine your DSL seamlessly
+# Freek, a freaky simple Free to combine your DSL seamlessly
 
-> Pere Villega wrote a really cool introduction to Freek before I could even move a finger and it's a really good one :D 
+> Pere Villega wrote a really cool introduction to Freek & Free before I could even move a finger and it's a really good one even if it was relying on previous version of the API but the ideas are still the same :D 
 >
 > http://perevillega.com/freek-and-free-monads
 >
 > Thanks a lot Pere
 
 
+<br/>
+<br/>
 ## Current Version
 
+<br/>
 ### v0.3.0:
 
-- replaced Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]`
-- provided new `interpret` function solving order/redundancy issues with DSL vs interpreters
-- renamed Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a sum between them, not a product of them
+- replaces Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]` and not just Free
+- provides new `interpret` function solving order/redundancy issues with DSL vs interpreters
+- renames Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a sum between them, not a product of them
 
+## Freek: a freaky simple Free to combine your DSL seamlessly
 
-## Motivations
+Freek is just a few helpers & tricks to make it straightforward to manipulate Free & DSL without hiding it's a Free.
 
-> At [ProjectSeptember](http://www.projectseptember.com), we love typesafe & functional programming.
+> This project has developed for [ProjectSeptember](http://www.projectseptember.com) which has kindly accepted that we opensource it under Apache2 License to make it as open & free as possible... Contributions & comments are welcome...
 
-We also like the concept of `Free Monad` which decouples completely the description of your program from its execution.
+<br/>
+<br/>
+## Freek out-of-the-box
 
-Free has a cost in terms of performance & short-term structures allocation but in our domain, IO is much more the bottleneck than these aspects so we can use those concepts without remorse.
-
-We also believe current implementations can be improved progressively using theoretical and even more brutal tools like compiler plugin/optimizations. So we want to push those concepts further and further.
-
-In Cats & Scalaz, `Free[F[_], A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/DSL `F[_]` in a `Free[F, A]`.
-
-Free is often associated to effects management and in this context, there are also interesting newer approaches in Scala world:
-
-- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for `freek`). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
-
-- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... Next step of evangelization ;)
-
-- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow...
-
-> But for now, `Free` concept starts to enter in mind of people so we want to use it as is (with a few enhancements).
-
-Here is what you want to do in general with Free:
-
-### Building DSL
-
-A DSL is a Domain Specific Language corresponding to the operation allowed by your business domain and describing it but not supposing how it will be executed.
-
-```scala
-
-//////////////////////////////////////////////////////////////////////////
-// LOG DSL
-object Log {
-  sealed trait LogLevel
-  case object ErrorLevel extends LogLevel
-  case object WarnLevel extends LogLevel
-  case object InfoLevel extends LogLevel
-  case object DebugLevel extends LogLevel
-
-  trait DSL[A]
-  case class LogMsg(level: LogLevel, msg: String) extends DSL[Unit]
-
-  /** just helpers */
-  def debug(msg: String) = LogMsg(DebugLevel, msg)
-  def info(msg: String) = LogMsg(InfoLevel, msg)
-  // ...
-}
-
-//////////////////////////////////////////////////////////////////////////
-// DB DSL
-object DB {
-
-  // DB DSL
-  type Entity = Map[String, String]
-
-  sealed trait DBError 
-  case object NotFound extends DBError
-
-  sealed trait DSL[A]
-  case class FindById(id: String) extends DSL[Xor[DBError, Entity]]
-  // ...
-}
+<br/>
+### Use it in your project
 
 ```
+# in build.sbt
 
-### Building simple programs using DSL
+scalaVersion := "2.11.8"
 
-Based on you DSL, you can build description of your program as sequence of operations/computations.
-Each computation will return a value when finished triggering the next step in the program. `Xor[DBError, Entity]` for `FindById` for example.
-
-Computations can have side-effects and in FP approaches, we tend to represent those with Monads and sequence monads into a sequence of computations using for-comprehensions.
-
-For example:
-
-```scala
-object DBService {
-
-  // Pseudo code
-  def findById(id: String): Free[F, A] = 
-    for {
-      _    <- Log.debug("Searching for entity id:"+id)
-      res  <- FindById(id)
-      _    <- Log.debug("Search result:"+res)
-    } yield (res)
-}
+libraryDependencies ++= Seq(
+  "com.projectseptember"            %% "freek"                        % "0.3.0"
+, "org.spire-math"                  %% "kind-projector"               % "0.7.1"
+, "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
+)
 ```
 
-#### What is this `F[_]` here?
+`KindProjector` plugin isn't required but it makes higher-kinded types so nicer that I can't do anything else than advising to use it.
 
-Logically, as you program uses Logs & DB operations, it should be a sort of combination of `Log.DSL[_]` and `DB.DSL[_]`.?
+`si2712fix-plugin` is required or you'll have weird compiling errors... Scalac 2.11 is not powerful enough to unify types in a correct as we would expect for Freek. But Scala 2.12 will be better as si2712fix has been merged into it thanks to Miles Sabin fantastic work.
 
-We could think about a _(Shapeless)_ Coproduct (A or B or C or ...)
-
-```
-// DB.DSL or Log.DSL
-t => DB.DSL[t] :+: Log.DSL[t] :+: CNil
-```
-
-### The program again
-
-```scala
-// Pseudo scala code
-type PRG[A] = DB.DSL[A] :+: Log.DSL[t] :+: CNil
-
-def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
-  for {
-    _    <- Log.debug("Searching for entity id:"+id)
-    res  <- FindById(id)
-    _    <- Log.debug("Search result:"+res)
-  } yield (res)
-```
-
-### Executing the program
-
-First, we need interpreters transforming every DSL combined in the `PRG` into an effectful computation. We can represent an interpreter by a natural transformation converting `DSL[A]` into a `Effectful[A]` where `Effectful` correspond the real execution performing eventual side-effects.
-
-```scala
-//////////////////////////////////////////////////////////////////////////
-// Interpreters as simple TransNat
-object Logger extends (Log.DSL ~> Future) {
-  def apply[A](a: Log.DSL[A]) = a match {
-    case Log.LogMsg(lvl, msg) =>
-      Future(println(s"$lvl $msg"))
-  }
-}
-
-object DBManager extends (DB.DSL ~> Future) {
-  def apply[A](a: DB.DSL[A]) = a match {
-    case DB.FindById(id) =>
-      Future {
-        println(s"DB Finding $id")
-        Xor.right(Map("id" -> id, "name" -> "toto"))
-      }
-  }
-}
-```
-
-Then we want to execute our `findById` program using those interpreters.
-Free monads come equipped with an operation called `foldMap`:
-
-```scala
-// Pseudo scala code
-val interpreter: F ~> Future = DBManager combine Logger
-val f: Future[Xor[DBError, Entity]] = findById(XXX).foldMap(interpreter)
-```
-
-#### What is `F[_]` now?
-
-Our `type PRG[A] = DB.DSL[A] :+: Log.DSL[t] :+: CNil` naturally!
-
-#### What is `combine`?
-
-It is the operation:
-
-```scala
-(DB.DSL ~> Id combine Log.DSL ~> Id) => (DB.DSL :+: Log.DSL :+: CNil) ~> Id
-```
-
-> **Nice isn't it?**
-
-> **But doesn't work ouf of the box**
-
-> - Shapeless Coproduct isn't very good for Coproduct of higher-kinded structures `F[_]` (or any other Coproducts I know).
-
-> `t => F[t] :+: (t => G[t] :+: CNil)` IS NOT `t => F[t] :+: G[t] :+: CNil`
-
-> - Combining interpreters like that doesn't work
-
-> - As you manipulate higher-kinded structures, you quickly hit the sadly famous `SI2712` issue.
+> Don't worry using this plugin seriously because it does it's job just at compile-time helping scalac to infer types in the right but it won't have any impact on runtime so no worry in any case.
 
 
-## Freek itself: a freaky simple Free to combine your DSL seamlessly
-
-Freek is not so much, just a few helpers to make manipulating Free & DSL just straightforward.
-
-Here are the helpers brought by Freek:
-
+<br/>
+<br/>
 ### Combine your DSL(s) with operator `:|:` (OR)
 
-This is a specialized implementation of Shapeless Coproduct for higher-kinded structures allowing to combine multiple DSL in one single.
+Imagine you have the following DSL(s):
 
-Imagine you have the following DSL
-
-```
+```scala
 sealed trait Log[A]
 case class LogMsg(level: LogLevel, msg: String) extends DSL[Unit]
 object Log {
@@ -220,26 +77,34 @@ object File {
 }
 ```
 
-You want to build a program that manipulate the 4 DSL together meaning you program will use Log `or` DB `or` Foo `or` Bar DSL (Sum/Coproduct of DSL).
+You want to build a program that manipulates the 3 DSL together.
+So this program will use Log `or` KVS `or` File which is a Sum/Coproduct of the 3 DSL.
 
-In Freek, you would combine them like that:
+To represent the DSL summing them all, Freek provides you with the following notation:
 
-```
+```scala
 type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
 ```
 
-- `:|:` is a symbol but in Scala, there is no more elegant way to mix types...
-- `FXNil` is required to end this Coproduct
-- `#Cop[A]` builds the real hidden Coproduct type which is the ugly `CoproductK` that you don't really want to see in general.
+Please note:
 
+- `FXNil` is required at the end of the coproduct
+- `#Cop[A]` builds the real hidden Sum/Coproduct type which is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types...
 
-### `.freek[PRG]` to lift all DSL operations to `PRG` in for-comprehension
+<br/>
+<br/>
+### `.freek[PRG]` to lift all operations in for-comprehension
 
-Ok, now you're going to write a program with those DSL lifted into Free monads `Free[DSL[_], A]` using a classic for-comprehension.
+Now, you want to write a program based on your DSL using Free Monads because it's an efficient way to describe your business logic without supposing how it will be executed.
 
-In a for-comprehension, each line should have the same type to compile so you need to lift all `Free[DSL[_], A]` to the common Free type `Free[PRG, A]`.
+So, you're going to use your `DSL[_]` lifted into Free monads `Free[DSL[_], A]` using a classic monadic flow i.e. for-comprehension.
 
-The conversion `DSL[A] => Free[DSL, A] => Free[PRG, A]` can be done in a trivial way using `.freek[PRG]`.
+In a for-comprehension, to compile successfully, every line should have the same type. Thus, you need to lift all `Free[DSL[_], A]` to the common Free type `Free[PRG, A]` where `PRG` is the sum of all the DSL used in your program.
+
+In a summary, you need a conversion `DSL[A] => Free[DSL, A] => Free[PRG, A]`.
+
+This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 
 ```scala
 type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
@@ -253,22 +118,26 @@ def program(id: String) =
   } yield (file)
 ```
 
-- Every line must be lifter to `PRG`
-- Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't perfect in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with terrible errors.
+- Every line must be lifted to `Free[PRG, A]`
+- the whole for-comprehension describes a program
 
+> Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
+<br/>
+<br/>
 ### Combine interpreters using operator `:&:` (AND)
 
-`program` just describe your sequence of operations but it doesn't execute it: it's just a data representation, a description of your computation.
+Previous `program` just describes your sequence of operations but it doesn't suppose how it will be executed: it's just a data representation of your program, a description of your computation.
 
-Now you need to _interpret_ this description into an effectful execution and this is done with `interpreters` in Freek.
-`Interpreters` in Freek are nothing else than NaturalTransformation/FunctionK `F[_] ~> G[_]` with some helpers to manipulate multipl combined DSL(s) defined above.
+Now, you need to _interpret_ this description into an effectful execution and this is done with `interpreters` in Freek.
+`Interpreters` in Freek are nothing else than classic Natural Transformation (aka FunctionK) `F[_] ~> G[_]` with some helpers to manipulate multiple combined DSL(s) defined above seamlessly.
 
-Here we suppose, we use an async execution context based on Scala `Future` not to be too fancy.
+Let's suppose we use an async execution context based on Scala `Future` not to be too fancy.
 
-1. Define your interpreters per DSL
+<br/>
+#### Define your interpreters per DSL
 
-```
+```scala
 val LogInterpreter = new (Log ~> Future) {
   def apply[A](a: Log[A]) = a match {
     case Log.LogMsg(lvl, msg) =>
@@ -308,121 +177,332 @@ val KVSInterpreter = new (KVS ~> Future) {
 
 ```
 
-2. Combine interpreters into a big interpreter with `:&:`
+<br/>
+#### Combine interpreters into a big interpreter with `:&:`
 
-Being able to execute your `program` means you are able to interpret DSL `Log` and `KVS` and `File`.
-So you need an interpreter which is the sum of `KVSInterpreter` and `LogInterpreter` and `FileInterpreter`
+Executing your `program` means you are able to interpret DSL `Log` and `KVS` and `File` into an effectful computation.
 
+So you need an interpreter which is the sum of `KVSInterpreter` and `LogInterpreter` and `FileInterpreter` (the product of them all).
 
-In Freek, here is how you define that:
+In Freek, you can combine your interpreters using operator `|&|` (AND)
 
-```
+```scala
 val interpreter = KVSInterpreter :&: LogInterpreter :&: FileInterpreter
 ```
 
-- Remark that there is no equivalent to `FXNil` at the end
-- `interpreter` is of type `Interpreter` which is just a wrapper around a `C ~> R`  where `C[_] <: CoproductK[_]`. If you want to access the underlying `PRG ~> Future`, just call `interpreter.nat`.
+Remark that:
 
-### Execute your program using `interpret`
+- there is no equivalent to `FXNil` at the end of sequence (because not types but values)
+- `interpreter` is actually of type `Interpreter` which is just a wrapper around a `C ~> R`  where `C[_] <: CoproductK[_]`. If you want to access the underlying NaturalTransformation/FunctionK `PRG ~> Future`, just call `interpreter.nat`.
 
-`program` is just a `Free[PRG, A]` so you could use simply `foldMap` with your `interpreter.nat`.
+<br/>
+#### Execute your program using `interpret`
 
-But Freek provides a smarter function called `interpret` that makes the order of DSL vs interpreters not relevant.
+`program` is just a `Free[PRG, A]`, right?
 
-```
+So you could use simply `foldMap/compile` with your `interpreter.nat`.
+
+But Freek provides a smarter function called `interpret` that makes the order of DSL vs interpreters not relevant as it will be shown further in this documentation.
+
+```scala
 val fut = program.interpret(interpreter) // this returns a Future[Unit]
 ```
 
-- 
+<br/>
+<br/>
+### Combine programs together with operator `:||:` (SUPER-OR)
 
+The big interest of Free programs is that you can call a Free program inside a Free program. In this case, logically, you need to combine the DSL of both programs into one single DSL and lift all your Free to this bigger DSL.
 
-### SI2712 patch
+<br/>
+#### Introduce new DSL & program
 
-SI2712 recent patch released by @milessabin has changed a lot the way we can build type-intensive libraries because we aren't limited by this terrible issue.
-
-> We need that [PR](https://github.com/scala/scala/pull/5102#issuecomment-219868111) merged in Scala 2.12, it's really important ;)
-
-In Freek, it is used by default as it allows writing code without ugly `.asInstanceOf` to help poor Scalac.
-
-Thanks @milessabin again!
-
-## Freek, finally all together
-
-```
-
-//////////////////////////////////////////////////////////////////////////
-// LOG DSL
-object Log {
-  sealed trait LogLevel
-  case object ErrorLevel extends LogLevel
-  case object WarnLevel extends LogLevel
-  case object InfoLevel extends LogLevel
-  case object DebugLevel extends LogLevel
-
-  trait DSL[A]
-  case class LogMsg(level: LogLevel, msg: String) extends DSL[Unit]
-
-  /** just helpers */
-  def debug(msg: String) = LogMsg(DebugLevel, msg)
-  def info(msg: String) = LogMsg(InfoLevel, msg)
-}
-
-//////////////////////////////////////////////////////////////////////////
-// DB DSL
+```scala
+// New DSL
 object DB {
 
-  // DB DSL
-  type Entity = Map[String, String]
-
-  sealed trait DBError 
-  case object NotFound extends DBError
-
   sealed trait DSL[A]
-  case class FindById(id: String) extends DSL[Xor[DBError, Entity]]
+  case class FindById(id: String) extends DSL[Entity]
 
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Program
+// the new program
 object DBService {
   import DB._
 
   type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
 
   /** the program */
-  def findById(id: String): Free[PRG, Xor[DBError, Entity]] = 
+  def findById(id: String): Free[PRG, Entity] =
     for {
       _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
       res  <- FindById(id).freek[PRG]
       _    <- Log.debug("Search result:"+res).freek[PRG]
     } yield (res)
 }
+```
 
-//////////////////////////////////////////////////////////////////////////
-// Interpreters
-object Logger extends (Log.DSL ~> Id) {
-  def apply[A](a: Log.DSL[A]) = a match {
-    case Log.LogMsg(lvl, msg) =>
-      println(s"$lvl $msg")
-  }
-}
+<br/>
+#### Combine programs
 
-object DBManager extends (DB.DSL ~> Id) {
-  def apply[A](a: DB.DSL[A]) = a match {
-    case DB.FindById(id) =>
-      println(s"DB Finding $id")
-      Xor.right(Map("id" -> id, "name" -> "toto"))
-  }
-}
+To combine an existing combination of DSL into a new program, use the operator `:||:` (2x`|`):
 
-//////////////////////////////////////////////////////////////////////////
-// Execution
-val interpreter: Interpreter[PRG, Id] = Logger :|: DBManager
+```scala
 
-DBService.findById(XXX).foldMap(interpreter.nat)
+  type PRG[A] = (Log :|: KVS :|: File :||: DBService.PRG)#Cop[A]
+
+  def program2(id: String) = 
+  for {
+    _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
+    name  <- KVS.Get(id).freek[PRG]
+    e     <- DB.findById(id).freek[PRG]
+    file  <- File.Get(e.file).freek[PRG]
+    _     <- Log.debug(s"Found file:$file").freek[PRG]
+  } yield (file)
 
 ```
 
+Please note:
+
+- there is no `FXNil` at the end because it's brought by `DBService.PRG`
+- `:||:` appends a list of DSL at the end
+
+
+<br/>
+#### What about DSL redundancy & order?
+
+You have remarked that `Log` is redundant in `PRG & `DBService.PRG` so it might be an issue when declaring your sequence of interpreters. You might also wonder what happens if you don't respect order of DSL in the sequence of interpreters.
+
+If you were using classic `foldMap/compile` to execute your Free program, you would have to respect the exact order and redundancy of interpreters vs DSL which is a pain.
+
+This is where Freek `interpret` really becomes interesting as it is order & redundancy-agnostic.
+
+So, for previous combined programs, you can just do:
+
+```scala
+
+val interpreter2 = DBInterpreter :&: KVSInterpreter :&: LogInterpreter :&: FileInterpreter
+
+val fut2 = program2.interpret(interpreter2) // this returns a Future[Unit]
+```
+
+> `:&&:` operator that could merge 2 interpreters together doesn't exist but show come soon
+
+
+<br/>
+<br/>
+### Manipulate Stack of result types
+
+Ok till now we have focused on the DSL/effect side F of `Free[F[_], A]`. We have nice tools to combine different effects/DSL and interpret them. But what about the result type?
+
+In previous samples, we had simple return types in our DSL but this return type often represents the results of operations in your business logic including error types.
+
+Let's define this kind of DSL:
+
+
+```scala
+sealed trait Foo[A]
+final case class Foo1(s: String) extends Foo[Option[Int]]
+final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
+final case object Foo3 extends Foo[Unit]
+final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
+
+sealed trait Bar[A]
+final case class Bar1(s: String) extends Bar[Option[String]]
+final case class Bar2(i: Int) extends Bar[Xor[String, String]]
+```
+
+Here you see some return type `Option[Int]` or `Xor[String, Int]`.
+
+In general, you want to write programs like:
+
+```scala
+for {
+  i <- Foo1("5").freek[PRG]                    // => here result is Option[String]
+  _ <- Bar2(i).freek[PRG]                      // => here result is Xor[String, String]
+  ...
+} yield (())
+```
+
+But you see clearly that `i` is an Option and types on both lines aren't the same.
+
+If you try to solve those naively in your program, you'll end with something like that:
+
+```scala
+for {
+  optI <- Foo1("5").freek[PRG]                    // => here result is Option[String]
+  _    <- optI match {
+            case Some(i) => Bar2(i).freek[PRG]    // => here result is Xor[String, String]
+            case None => ...                      // => What to return here???
+          }
+  ...
+} yield (())
+```
+
+It's ugly and still needs to unify Xor[String, String] and Option[String] in a common type.
+
+The natural approach is to stack your complex return types to be able to manage all cases (order matters naturally):
+
+```scala
+Xor[String, Option[String]] or Option[Xor[String, String]]
+
+// orders matters naturally and depends on your business rules
+```
+
+As you may know, the classic approach to this is to use _MonadTransformers_ (`OptionT` & `XorT`) which work well with Freek but Freek also provides new typesafe facilities called `Onion` & `OnionT` to make it a bit more trivial.
+
+<br/>
+#### Onion, stack of monads/traverses
+
+`Onion` is just a way to manipulate a stack of monadic & traversable structures like:
+
+```scala
+type Stack[A] = F[G[H[I[A]]]] (where F/G/H/I must be monads & traversables to allow all features provided by Onion)
+```
+
+You can represent it using `Onion` facilty:
+
+```scala
+// Build your Onion like that
+type O = F :&: G :&: H :&: I :&: Bulb
+
+// then you could get the Stack again (but in general you don't need it)
+type Stack[A] = O#Build[A]
+```
+
+_Bulb is just the terminator of the `Onion` stack (like FXNil for stack of effects/DSL)_
+
+
+Let's go back to our original program now and try type unification on every line:
+
+
+```scala
+for {
+  i   <- Foo1("5").freek[PRG] // => here result is Option[String]
+  s   <- Bar2(i).freek[PRG]   // => here result is Xor[String, String]
+  ...
+} yield (())
+```
+
+So, in the for-comprehension, we need to unify types on every line:
+
+```scala
+Free[PRG, Option[A]]
+// and
+Free[PRG, Xor[String, A]]
+
+// into
+Free[PRG, Xor[String, Option[A]]]
+
+// which is
+type O = Xor[String, ?] :&: Option :&: Bulb
+Free[PRG, O#Build]
+```
+
+As you can expect, that's not enough, you need something more to do what we want.
+
+<br/>
+#### OnionT, the missing link
+
+For `Option`, the Monad Transformer is called `OptionT`
+For `Xor`, the Monad Transformer is called `XorT`
+
+For `Onion`, Freek provides `OnionT[TC[_[_], _], F[_], O <: Onion, A]`...
+
+Freaky, isn't it? Don't worry, you don't have to see it most of the time like monad transformers :D
+
+> Let's say loud that _`OnionT` is not a Monad Transformer_: is an Onion stack of monadic & traversable layers embedded as result type of a  monad `TC[F[_], ?]` (like `Free[F[_], ?]`).
+
+Finally, if you are able to lift all your `Free[PRG, Option[A] or Xor[String, A]]` to `OnionT[Free, PRG, O, A]`, victory!
+... And you can do it with `.onionT[O]`
+
+Let's give an example of it:
+
+```scala
+type PRG[A] = (Bar :|: Foo :|: Log.DSL :|: FXNil)#Cop[A]
+type O = Xor[String, ?] :&: Option :&: Bulb
+
+val prg = for {
+  i     <- Foo1("5").freek[PRG].onionT[O]
+  i2    <- Foo2(i).freek[PRG].onionT[O]
+  _     <- Log.info("toto " + i).freek[PRG].onionT[O]
+  _     <- Foo3.freek[PRG].onionT[O]
+  s     <- Bar1(i2.toString).freek[PRG].onionT[O]
+  i3    <- Foo4(i2).freek[PRG].onionT[O]
+} yield (i3)
+```
+
+Remark that `.oniontT[O]` is used in all cases to lift to `OnionT[Free, PRG, O, A]`
+
+<br/>
+#### `.freeko[PRG, O]`, the cherry on the cake
+
+Ok you have to write `.freek[PRG].onionT[O]` on each line which is boring...
+
+There is a shortcut called `.freeko[PRG, O]`
+
+
+```scala
+type PRG[A] = (Bar :|: Foo :|: Log.DSL :|: FXNil)#Cop[A]
+type O = Xor[String, ?] :&: Option :&: Bulb
+
+val prg = for {
+  i     <- Foo1("5").freeko[PRG, O]
+  i2    <- Foo2(i).freeko[PRG, O]
+  _     <- Log.info("toto " + i).freeko[PRG, O]
+  _     <- Foo3.freeko[PRG, O]
+  s     <- Bar1(i2.toString).freeko[PRG, O]
+  i3    <- Foo4(i2).freeko[PRG, O]
+} yield (i3)
+```
+
+#### Execute an OnionT with `.value`
+
+`prg` has type `OnionT[Free, PRG, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
+
+It's as simple as you would do with Monad Transformers: access the underlying Free with `.value`
+
+```scala
+val fut = prg.value.interpret(interpreters)
+```
+
+<br/>
+<br/>
+## Reminding motivations
+
+At [ProjectSeptember](http://www.projectseptember.com), we love typesafe & functional programming.
+
+We also like the concept of `Free Monad` which decouples completely the description of your program from its execution.
+
+Free has a cost in terms of performance & short-term structures allocation but in our domain, IO is much more the bottleneck than these aspects so we can use those concepts without remorse.
+
+We also believe current implementations can be improved progressively using theoretical and even more brutal tools like compiler plugin/optimizations. So we want to push those concepts further and further.
+
+In Cats & Scalaz, `Free[F[_], A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/DSL `F[_]` in a `Free[F, A]`.
+
+Free is often associated to effects management and in this context, there are also interesting newer approaches in Scala world:
+
+- [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for `freek`). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
+
+- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... Next step of evangelization ;)
+
+- [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow...
+
+> But for now, `Free` concept starts to enter in mind of people so we want to use it as is (with a few enhancements).
+
+<br/>
+<br/>
+## Tribute to SI2712 patch
+
+SI2712 recent patch released by @milessabin has changed a lot the way we can build type-intensive libraries because we aren't limited by this terrible issue.
+
+> That [PR](https://github.com/scala/scala/pull/5102#issuecomment-219868111) has been merged in Scala 2.12 and it changes things a lot...
+
+Without it, Freek would be much uglier & less fun to use.
+
+Thanks @milessabin again!
+
+<br/>
 Deeper sample can be found in [AppSpec](https://github.com/ProjectSeptemberInc/freek/blob/master/src/test/scala/AppSpec.scala)
 
 

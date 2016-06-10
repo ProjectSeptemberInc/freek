@@ -333,13 +333,11 @@ class AppSpec extends FlatSpec with Matchers {
   "freek" should "manage monadic onions of result types" in {
     import cats.std.future._
     import cats.std.option._
-    import cats.std.option._
-    import cats.data.OptionT
+    import cats.std.list._
     import ExecutionContext.Implicits.global
-    // import hk._
 
     sealed trait Foo[A]
-    final case class Foo1(s: String) extends Foo[Option[Int]]
+    final case class Foo1(s: String) extends Foo[List[Option[Int]]]
     final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
     final case object Foo3 extends Foo[Unit]
     final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
@@ -350,17 +348,17 @@ class AppSpec extends FlatSpec with Matchers {
 
     type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
 
-    type S = Xor[String, ?] :&: Option :&: Bulb
+    type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
 
     val prg = for {
-      i     <- Foo1("5").freek[PRG].onionT[S]
-      i2    <- Foo2(i).freek[PRG].onionT[S]
-      _     <- Log.info("toto " + i).freek[PRG].onionT[S]
-      _     <- Foo3.freek[PRG].onionT[S]
-      s     <- Bar1(i2.toString).freek[PRG].onionT[S]
-      i3    <- Foo4(i2).freek[PRG].onionT[S]
+      i     <- Foo1("5").freek[PRG].onionT[O]
+      i2    <- Foo2(i).freek[PRG].onionT[O]
+      _     <- Log.info("toto " + i).freek[PRG].onionT[O]
+      _     <- Foo3.freek[PRG].onionT[O]
+      s     <- Bar1(i2.toString).freek[PRG].onionT[O]
+      i3    <- toOnionT2(Foo4(i2).freek[PRG]).onionT[O]
     } yield (i3)
 
     val logger2Future = new (Log.DSL ~> Future) {
@@ -372,7 +370,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val foo2Future = new (Foo ~> Future) {
       def apply[A](a: Foo[A]) = a match {
-        case Foo1(s) => Future { Some(s.toInt) } // if you put None here, it stops prg before Log
+        case Foo1(s) => Future { List(Some(s.toInt)) } // if you put None here, it stops prg before Log
         case Foo2(i) => Future(Xor.right(i))
         case Foo3 => Future.successful(())
         case Foo4(i) => Future.successful(Xor.right(Some(i)))

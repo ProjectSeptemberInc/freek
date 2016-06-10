@@ -53,9 +53,31 @@ trait Lifter[H[_], S <: Onion] {
   def lift[A](ha: H[A]): S#Build[A]
 }
 
-object Lifter {
+object Lifter extends LifterLow {
 
   def apply[H[_], S <: Onion](implicit lifter: Lifter[H, S]) = lifter 
+
+  // here Applicative isn't needed (just Functor) but you need it to add more elements to onion so...
+  // implicit def first2[H[_]:Applicative, I[_]:Applicative, T <: Onion](
+  //   implicit nextPointer: Pointer[T]
+  // ): Lifter[λ[t => H[I[t]]], H :&: I :&: T] = new Lifter[λ[t => H[I[t]]], H :&: I :&: T] {
+  //   def lift[A](hia: H[I[A]]): (H :&: I :&: T)#Build[A] = Functor[H].map(hia)(ia => Functor[I].map(ia)(a => nextPointer.point(a)))
+  // }
+
+  implicit def first2[H[_]:Applicative, I[_], T <: Onion](
+    implicit next: Lifter[I, T]
+  ): Lifter[λ[t => H[I[t]]], H :&: T] = new Lifter[λ[t => H[I[t]]], H :&: T] {
+    def lift[A](hia: H[I[A]]): (H :&: T)#Build[A] = Functor[H].map(hia)(ia => next.lift(ia))
+  }
+
+  implicit def cons2[H[_]:Applicative, I[_], K[_]:Applicative, T <: Onion](
+    implicit next: Lifter[λ[t => H[I[t]]], T]
+  ): Lifter[λ[t => H[I[t]]], K :&: T] = new Lifter[λ[t => H[I[t]]], K :&: T] {
+    def lift[A](hia: H[I[A]]): (K :&: T)#Build[A] = Applicative[K].pure(next.lift(hia))
+  }
+}
+
+trait LifterLow {
 
   // here Applicative isn't needed (just Functor) but you need it to add more elements to onion so...
   implicit def first[H[_]:Applicative, T <: Onion](
@@ -68,9 +90,45 @@ object Lifter {
     implicit next: Lifter[H, T]
   ): Lifter[H, K :&: T] = new Lifter[H, K :&: T] {
     def lift[A](ha: H[A]): (K :&: T)#Build[A] = Applicative[K].pure(next.lift(ha))
-  }  
+  }
+
 }
 
+@implicitNotFound("could not lift2 ${HA} into Onion ${S}; either ${S} does not contain a constructor of ${HA}, or there is no Applicative Functor for a constructor of ${S}")
+trait Lifter2[HA, S <: Onion] {
+  type A
+  def lift2(ha: HA): S#Build[A]
+}
+
+object Lifter2 extends Lifter2Low {
+
+  def apply[HA, S <: Onion](implicit lifter: Lifter2[HA, S]) = lifter 
+
+  implicit def cons2[H[_]:Applicative, I[_], A0, T <: Onion](
+    implicit next: Lifter2[I[A0], T]
+  ): Lifter2[H[I[A0]], H :&: T] = new Lifter2[H[I[A0]], H :&: T] {
+    type A = next.A
+    def lift2(hia: H[I[A0]]): (H :&: T)#Build[A] = Functor[H].map(hia)(ia => next.lift2(ia))
+  }
+}
+
+trait Lifter2Low {
+  implicit def first[H[_]:Applicative, A0, T <: Onion](
+    implicit nextPointer: Pointer[T]
+  ): Lifter2[H[A0], H :&: T] = new Lifter2[H[A0], H :&: T] {
+    type A = A0
+    def lift2(ha: H[A0]): (H :&: T)#Build[A] = Functor[H].map(ha)(a => nextPointer.point(a))
+  }
+
+  implicit def cons[H[_]:Functor:Applicative, A0, K[_]:Applicative, T <: Onion](
+    implicit next: Lifter2[H[A0], T]
+  ): Lifter2[H[A0], K :&: T] = new Lifter2[H[A0], K :&: T] {
+    type A = next.A
+    def lift2(ha: H[A0]): (K :&: T)#Build[A] = Applicative[K].pure(next.lift2(ha))
+  }
+
+
+}
 
 @implicitNotFound("could not compute a method for mapping over onion ${S}; either a member of the stack lacks a Functor, or its Functor instance is ambiguous")
 trait Mapper[S <: Onion] {

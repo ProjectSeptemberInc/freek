@@ -14,14 +14,16 @@ package object freek extends HK with OnionTHelpers {
 
     @inline def upcast[T](implicit f: F[A] <:< T): T = fa
 
-    @inline def freeko[C[_] <: CoproductK[_], S <: Onion](
-      implicit 
-        sub: SubCop[ConsK[F, CNilK, ?], C]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ) = freek[C].onionT[S]
+    // not working yet... edge-cases make it fail with not cool errors
+    // @inline def freeko[C[_] <: CoproductK[_], S <: Onion](
+    //   implicit 
+    //     sub: SubCop[ConsK[F, CNilK, ?], C]
+    //   , lifter2: Lifter2[F[A], S]
+    //   , pointer: Pointer[S]
+    //   , mapper: Mapper[S]
+    //   , binder: Binder[S]
+    //   , traverser: Traverser[S]
+    // ) = freek[C].onionT[S]
   }
 
   implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {

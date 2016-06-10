@@ -19,6 +19,13 @@ class Interpreter[C[_] <: CoproductK[_], R[_]](
     }
   )
 
+  // TBD
+  // def :&&:[D[_] <: CoproductK[_]](f: Interpreter[D])(
+  //   implicit merge: MergeCopHK[D, C]
+  // ): Interpreter[ConsK[F, C, ?], R] = new Interpreter(
+  //   // TBD
+  // )
+
   def andThen[R2[_]](r2: R ~> R2): Interpreter[C, R2]  = new Interpreter(
     nat andThen r2
   )
