@@ -18,12 +18,12 @@ package object freek extends HK with OnionTHelpers {
     // @inline def freeko[C[_] <: CoproductK[_], S <: Onion](
     //   implicit 
     //     sub: SubCop[ConsK[F, CNilK, ?], C]
-    //   , lifter2: Lifter2[F[A], S]
+    //   , lifter2: Lifter2[A, S]
     //   , pointer: Pointer[S]
     //   , mapper: Mapper[S]
     //   , binder: Binder[S]
     //   , traverser: Traverser[S]
-    // ) = freek[C].onionT[S]
+    // ) = toOnionT3(freek[C]).onionT[S]
   }
 
   implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {

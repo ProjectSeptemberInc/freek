@@ -230,3 +230,55 @@ object Expander {
   }
 }
 
+
+
+trait DownRight[S <: Onion] {
+  type OutS <: Onion
+  type Out[_]
+
+  def downRight[A](s: S#Build[A]): OutS#Build[Out[A]]
+}
+
+object DownRight {
+
+  type Aux[S <: Onion, OutS0 <: Onion, Out0[_]] = DownRight[S] { type OutS = OutS0; type Out[t] = Out0[t] }
+
+  def apply[S <: Onion](implicit dr: DownRight[S]) = dr
+
+  implicit def first[H[_]]: DownRight.Aux[H :&: Bulb, Bulb, H] = new DownRight[H :&: Bulb] {
+    type OutS = Bulb
+    type Out[t] = H[t]
+
+    def downRight[A](hka: (H :&: Bulb)#Build[A]): Bulb#Build[H[A]] = {
+      hka
+    }
+  }
+
+  implicit def cons[H[_]:Functor, S <: Onion, NextS <: Onion, Next[_]](
+    implicit next: DownRight.Aux[S, NextS, Next]
+  ): DownRight.Aux[H :&: S, H :&: NextS, Next] = new DownRight[H :&: S] {
+    type OutS = H :&: NextS
+    type Out[t] = Next[t]
+
+    def downRight[A](hsa: (H :&: S)#Build[A]): (H :&: NextS)#Build[Next[A]] =
+      Functor[H].map(hsa){ sa => next.downRight(sa) }
+  }
+}
+
+
+trait UpLeft[H[_], S <: Onion] {
+  type Out <: Onion
+
+  def upLeft[A](s: S#Build[A]): Out#Build[A]
+}
+
+
+object UpLeft {
+
+  def apply[H[_], S <: Onion](implicit upleft: UpLeft[H, S]) = upleft
+
+  implicit def build[H[_]: Applicative, S <: Onion] = new UpLeft[H, S] {
+    type Out = H :&: S
+    def upLeft[A](s: S#Build[A]): (H :&: S)#Build[A] = Applicative[H].pure(s)
+  }
+}
