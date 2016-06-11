@@ -16,7 +16,7 @@
 
 - replaces Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]` and not just Free
 - provides new `interpret` function solving order/redundancy issues with DSL vs interpreters
-- renames Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a sum between them, not a product of them
+- renames Interpreter combining operator `:|:` into `:&:` because combining interpreters is about a product between them, not a sum of them
 
 ## Freek: a freaky simple Free to combine your DSL seamlessly
 
@@ -58,7 +58,7 @@ Imagine you have the following DSL(s):
 
 ```scala
 sealed trait Log[A]
-case class LogMsg(level: LogLevel, msg: String) extends DSL[Unit]
+case class LogMsg(level: LogLevel, msg: String) extends Log[Unit]
 object Log {
   def debug(msg: String) = LogMsg(DebugLevel, msg)
   def info(msg: String) = LogMsg(InfoLevel, msg)
@@ -66,14 +66,15 @@ object Log {
 
 sealed trait KVS[A]
 object KVS {
-  final case class Get(key: String) extends DSL[String]
-  final case class Put(key: String, value: String) extends DSL[Unit]
+  final case class Get(key: String) extends KVS[String]
+  final case class Put(key: String, value: String) extends KVS[Unit]
 }
 
-sealed trait File[A]
-object File {
-  final case class GetFile(name: String) extends DSL[File]
-  final case class DeleteFile(name: String) extends DSL[Unit]
+sealed trait FileIO[A]
+object FileIO {
+  final case class GetFile(name: String) extends FileIO[File]
+  final case class DeleteFile(name: String) extends FileIO[Unit]
+  ...
 }
 ```
 
@@ -182,9 +183,9 @@ val KVSInterpreter = new (KVS ~> Future) {
 
 Executing your `program` means you are able to interpret DSL `Log` and `KVS` and `File` into an effectful computation.
 
-So you need an interpreter which is the sum of `KVSInterpreter` and `LogInterpreter` and `FileInterpreter` (the product of them all).
+So you need an interpreter which is the product of `KVSInterpreter` and `LogInterpreter` and `FileInterpreter`.
 
-In Freek, you can combine your interpreters using operator `|&|` (AND)
+In Freek, you can combine your interpreters using operator `:&:` (AND)
 
 ```scala
 val interpreter = KVSInterpreter :&: LogInterpreter :&: FileInterpreter
