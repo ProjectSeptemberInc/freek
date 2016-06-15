@@ -37,6 +37,7 @@ object Log {
   /** just helpers without any weird implicits */
   def debug(msg: String) = LogMsg(DebugLevel, msg)
   def info(msg: String) = LogMsg(InfoLevel, msg)
+  def infoF(msg: String): Free[DSL, Unit] = Free.liftF(info(msg))
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -306,6 +307,7 @@ class AppSpec extends FlatSpec with Matchers {
       i     <- Bar("5").freek[PRG].liftT[Option].liftF[Xor[String, ?]]
       i     <- Bar2(i).freek[PRG].liftF[Option].liftT[Xor[String, ?]]
       _     <- Log.info("toto " + i).freek[PRG].liftF[Option].liftF[Xor[String, ?]]
+      _     <- Log.infoF("").freekF[PRG].liftF[Option].liftF[Xor[String, ?]]
       _     <- Bar3.freek[PRG].liftF[Option].liftF[Xor[String, ?]]
     } yield (())
 
