@@ -356,9 +356,6 @@ class AppSpec extends FlatSpec with Matchers {
 
     type PRG = Foo :|: Log.DSL :|: PRG2
 
-
-    // Lifter2[List[Option[Int]], O]
-
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
       i2    <- Foo2(i).freek[PRG].onionT[O]
