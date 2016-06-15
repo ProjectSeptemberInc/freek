@@ -159,9 +159,9 @@ class AppSpec extends FlatSpec with Matchers {
     object KVSService {
       import KVS._
 
-      type PRG[A] = (KVS.DSL[String, String, ?] :|: FXNil)#Cop[A]
+      type PRG = KVS.DSL[String, String, ?] :|: FXNil
 
-      def update[A, B](id: String, f: String => String): Free[PRG, Unit] =
+      def update[A, B](id: String, f: String => String) =
         for {
           res  <- Get[String, String](id).upcast[KVS.DSL[String, String, String]].freek[PRG]
           _    <- Put[String, String](id, f(res)).upcast[KVS.DSL[String, String, Unit]].freek[PRG]
@@ -173,13 +173,13 @@ class AppSpec extends FlatSpec with Matchers {
 
       // APP DEFINITION
       // combine DSL in a higher-kinded coproduct
-      // (Log.DSL :@: DB.DSL :@: FXNil)#Cop[A] builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
+      // Log.DSL :@: DB.DSL :@: FXNil builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
       // FXNil corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
-      type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
+      type PRG = Log.DSL :|: DB.DSL :|: FXNil
 
       /** the program */
-      def findById(id: String): Free[PRG, Xor[DBError, Entity]] =
+      def findById(id: String): Free[PRG#Cop, Xor[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
           res  <- FindById(id).freek[PRG]
@@ -191,11 +191,11 @@ class AppSpec extends FlatSpec with Matchers {
       import Http._
 
       /** Combining DSL in a type alias */
-      type PRG[A] = (Log.DSL  :|: HttpInteract :|: HttpHandle :||: DBService.PRG)#Cop[A]
+      type PRG = Log.DSL  :|: HttpInteract :|: HttpHandle :|: DBService.PRG
 
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct
-      def handle(req: HttpReq): Free[PRG, HttpResp] = req.url match {
+      def handle(req: HttpReq): Free[PRG#Cop, HttpResp] = req.url match {
         case "/foo" =>
           for {
             _     <-  Log.debug("/foo").freek[PRG]
@@ -215,7 +215,7 @@ class AppSpec extends FlatSpec with Matchers {
       // server program
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
-      def serve(): Free[PRG, Xor[RecvError, SendStatus]] =
+      def serve(): Free[PRG#Cop, Xor[RecvError, SendStatus]] =
         for {
           recv  <-  HttpInteract.receive().freek[PRG]
           _     <-  Log.info("HttpReceived Request:"+recv).freek[PRG]
@@ -304,7 +304,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
     final case object Bar3 extends Foo[Unit]
 
-    type PRG[A] = (Foo :|: Log.DSL :|: FXNil)#Cop[A]
+    type PRG = Foo :|: Log.DSL :|: FXNil
 
     val prg = for {
       i     <- Bar("5").freek[PRG].liftT[Option].liftF[Xor[String, ?]]
@@ -350,11 +350,11 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-    type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
+    type PRG = Foo :|: Log.DSL :|: PRG2
 
 
     // Lifter2[List[Option[Int]], O]
@@ -413,11 +413,11 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
 
     type O = List :&: Xor[String, ?] :&: Bulb
 
-    type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
+    type PRG = Foo :|: Log.DSL :|: PRG2
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionP[O]
@@ -476,11 +476,11 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-    type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
+    type PRG = Foo :|: Log.DSL :|: PRG2
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionT[O].downRight
@@ -535,13 +535,13 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2[A] = (Bar :|: Log.DSL :|: FXNil)#Cop[A]
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-    type PRG[A] = (Foo :|: Log.DSL :||: PRG2)#Cop[A]
+    type PRG = Foo :|: Log.DSL :|: PRG2
 
-    val f: OnionT[Free, PRG, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
+    val f: OnionT[Free, PRG#Cop, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
       Foo1("5")
       .freek[PRG]
       .onionT[Xor[String, ?] :&: Option :&: Bulb]

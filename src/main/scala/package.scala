@@ -9,8 +9,8 @@ package object freek extends HK with OnionTHelpers {
   implicit class ToFreek[F[_], A](val fa: F[A]) extends AnyVal {
     @inline def freek0: Free[ConsK[F, CNilK, ?], A] = Freek(fa)
 
-    @inline def freek[C[_] <: CoproductK[_]](implicit sub: SubCop[ConsK[F, CNilK, ?], C]): Free[C, A] =
-      Freek.expand[ConsK[F, CNilK, ?], C, A](freek0)
+    @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, A] =
+      Freek.expand[ConsK[F, CNilK, ?], C#Cop, A](freek0)
 
     @inline def upcast[T](implicit f: F[A] <:< T): T = fa
 
@@ -27,8 +27,8 @@ package object freek extends HK with OnionTHelpers {
   }
 
   implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {
-    @inline def expand[C[_] <: CoproductK[_]](implicit sub: SubCop[F, C]): Free[C, A] =
-      Freek.expand[F, C, A](free)
+    @inline def expand[C <: FX](implicit sub: SubCop[F, C#Cop]): Free[C#Cop, A] =
+      Freek.expand[F, C#Cop, A](free)
 
     def interpret[F2[_] <: CoproductK[_], G[_]: Monad](i: Interpreter[F2, G])(
       implicit sub:SubCop[F, F2]
@@ -42,5 +42,5 @@ package object freek extends HK with OnionTHelpers {
 
   type :@:[H[_], T <: FX] = :|:[H, T]
 
-  type :@@:[H[_], T[_] <: CoproductK[_]] = :||:[H, T]
+  // type :@@:[H[_], T[_] <: CoproductK[_]] = :||:[H, T]
 }
