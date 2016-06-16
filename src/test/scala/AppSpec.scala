@@ -58,13 +58,6 @@ object DB {
 
 }
 
-object KVS{
-
-  sealed trait DSL[K, V, E]
-  case class Get[K, V](key: K) extends DSL[K, V, V]
-  case class Put[K, V](key: K, value: V) extends DSL[K, V, Unit]
-
-}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -154,19 +147,6 @@ class AppSpec extends FlatSpec with Matchers {
 
 
   "ShapeApp" should "freek" in {
-
-
-    object KVSService {
-      import KVS._
-
-      type PRG = KVS.DSL[String, String, ?] :|: FXNil
-
-      def update[A, B](id: String, f: String => String) =
-        for {
-          res  <- Get[String, String](id).upcast[KVS.DSL[String, String, String]].freek[PRG]
-          _    <- Put[String, String](id, f(res)).upcast[KVS.DSL[String, String, Unit]].freek[PRG]
-        } yield (())
-    }
 
     object DBService {
       import DB._
@@ -354,7 +334,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-    type PRG = Foo :|: Log.DSL :|: PRG2
+    type PRG = Foo :|: Log.DSL  :|: PRG2
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -394,7 +374,7 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "manage monadic onions of result types 2" in {
+  "freek" should "manage monadic onions of result types manipulating Option[A] using OnionP" in {
     import cats.std.future._
     import cats.std.option._
     import cats.std.list._
@@ -480,17 +460,17 @@ class AppSpec extends FlatSpec with Matchers {
     type PRG = Foo :|: Log.DSL :|: PRG2
 
     val prg = for {
-      iOpt  <-  Foo1("5").freek[PRG].onionT[O].downRight
+      iOpt  <-  Foo1("5").freek[PRG].onionT[O].dropRight
       i2    <-  iOpt match {
-                  case Some(i) => Foo2(i).freek[PRG].onionT[O].downRight
-                  case None => Foo2(0).freek[PRG].onionT[O].downRight
+                  case Some(i) => Foo2(i).freek[PRG].onionT[O].dropRight
+                  case None => Foo2(0).freek[PRG].onionT[O].dropRight
                 }
-      _     <-  Log.info("toto " + i2).freek[PRG].onionT[O].downRight
-      _     <-  Foo3.freek[PRG].onionT[O].downRight
-      s     <-  Bar1(i2.toString).freek[PRG].onionP[O].downRight
+      _     <-  Log.info("toto " + i2).freek[PRG].onionT[O].dropRight
+      _     <-  Foo3.freek[PRG].onionT[O].dropRight
+      s     <-  Bar1(i2.toString).freek[PRG].onionT[O].dropRight
       i3    <-  i2 match {
-                  case Some(i) => Foo4(i).freek[PRG].onionP[O].downRight
-                  case None => Foo4(0).freek[PRG].onionP[O].downRight
+                  case Some(i) => Foo4(i).freek[PRG].onionT[O].dropRight
+                  case None => Foo4(0).freek[PRG].onionT[O].dropRight
                 }
     } yield (i3)
 
@@ -523,7 +503,83 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "manage monadic onions of result types 4" in {
+  "freek" should "manage monadic onions of result types with phantom types (upcasting)" in {
+    import cats.std.future._
+    import cats.std.option._
+    import cats.std.list._
+    import ExecutionContext.Implicits.global
+
+
+    sealed trait KVS[K, V, E]
+    case class Get[K, V](key: K) extends KVS[K, V, V]
+    case class Put[K, V](key: K, value: V) extends KVS[K, V, Unit]
+
+    sealed trait Foo[A]
+    final case class Foo1(s: String) extends Foo[List[Option[Int]]]
+    final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
+    final case object Foo3 extends Foo[Unit]
+    final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
+
+    sealed trait Bar[A]
+    final case class Bar1(s: String) extends Bar[Option[String]]
+    final case class Bar2(i: Int) extends Bar[Xor[String, String]]
+
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
+
+    type O = List :&: Xor[String, ?] :&: Option :&: Bulb
+
+    type PRG = Foo :|: Log.DSL  :|: KVS[String, Int, ?] :|: PRG2
+
+    val prg = for {
+      i     <- Foo1("5").freek[PRG].onionT[O]
+      i2    <- Foo2(i).freek[PRG].onionT[O]
+      _     <- Put[String, Int](i.toString, i2).upcast[KVS[String, Int, Unit]].freek[PRG].onionT[O]
+      _     <- Get[String, Int](i.toString).upcast[KVS[String, Int, Int]].freek[PRG].onionT[O]
+      _     <- Log.info("toto " + i).freek[PRG].onionT[O]
+      _     <- Foo3.freek[PRG].onionT[O]
+      s     <- Bar1(i2.toString).freek[PRG].onionT[O]
+      i3    <- Foo4(i2).freek[PRG].onionT[O]
+    } yield (i3)
+
+    val logger2Future = new (Log.DSL ~> Future) {
+      def apply[A](a: Log.DSL[A]) = a match {
+        case Log.LogMsg(lvl, msg) =>
+          Future.successful(println(s"$lvl $msg"))
+      }
+    }
+
+    val foo2Future = new (Foo ~> Future) {
+      def apply[A](a: Foo[A]) = a match {
+        case Foo1(s) => Future { List(Some(s.toInt)) } // if you put None here, it stops prg before Log
+        case Foo2(i) => Future(Xor.right(i))
+        case Foo3 => Future.successful(())
+        case Foo4(i) => Future.successful(Xor.right(Some(i)))
+      }
+    }
+
+    val bar2Future = new (Bar ~> Future) {
+      def apply[A](a: Bar[A]) = a match {
+        case Bar1(s) => Future { Some(s) } // if you put None here, it stops prg before Log
+        case Bar2(i) => Future(Xor.right(i.toString))
+      }
+    }
+
+    val kvs2Future = new (KVS[String, Int, ?] ~> Future) {
+      val map = scala.collection.mutable.Map[String, Int]()
+
+      def apply[A](a: KVS[String, Int, A]) = a match {
+        case get:Get[String, Int] => Future { map(get.key) }
+        case put:Put[String, Int] => Future { map += (put.key -> put.value); () }
+      }
+    }
+
+    val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: kvs2Future
+
+    Await.result(prg.value.interpret(interpreters), 10.seconds)
+  
+  }  
+
+  "freek" should "manage monadic onions of result types downLeft/upRight" in {
 
     sealed trait Foo[A]
     final case class Foo1(s: String) extends Foo[Option[Int]]
@@ -542,8 +598,8 @@ class AppSpec extends FlatSpec with Matchers {
       Foo1("5")
       .freek[PRG]
       .onionT[Xor[String, ?] :&: Option :&: Bulb]
-      .upLeft[List]
-      .downRight
+      .prepend[List]
+      .dropRight
   
   }
 

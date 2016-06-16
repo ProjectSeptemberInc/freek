@@ -27,25 +27,25 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
       }
     )
 
-  def downRight(
+  def dropRight(
     implicit
       tcMonad: Monad[TC[F, ?]]
-    , dr: DownRight[S]
+    , dr: DropRight[S]
   ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
     OnionT[TC, F, dr.OutS, dr.Out[A]](
       tcMonad.map(value){ sba: S#Build[A] =>
-        dr.downRight(sba)
+        dr.dropRight(sba)
       }
     )
 
-  def upLeft[H[_]](
+  def prepend[H[_]](
     implicit
       tcMonad: Monad[TC[F, ?]]
-    , ul: UpLeft[H, S]
+    , ul: Prepend[H, S]
   ): OnionT[TC, F, ul.Out, A] =
     OnionT[TC, F, ul.Out, A](
       tcMonad.map(value){ sba: S#Build[A] =>
-        ul.upLeft(sba)
+        ul.prepend(sba)
       }
     )
 

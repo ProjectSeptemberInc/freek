@@ -42,5 +42,4 @@ package object freek extends HK with OnionTHelpers {
 
   type :@:[H[_], T <: FX] = :|:[H, T]
 
-  // type :@@:[H[_], T[_] <: CoproductK[_]] = :||:[H, T]
 }

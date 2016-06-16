@@ -168,6 +168,61 @@ trait LowerMergeCopHK {
 }
 
 
+trait ContainsHKLub[L[_] <: CoproductK[_], H[_]] extends Serializable {
+  type R[_] <: CoproductK[_]
+
+  type Lub[_]
+
+  def extract[A](la: L[A]): Option[Lub[A]]
+  def build[A](ha: H[A]): L[A]
+}
+
+
+object ContainsHKLub extends LowerContainsHKLub {
+
+  type Aux[L[_] <: CoproductK[_], H[_], R0[_] <: CoproductK[_], Lub0[_]] =
+    ContainsHKLub[L, H] { type R[t] = R0[t]; type Lub[t] = Lub0[t] }
+  
+  def apply[L[_] <: CoproductK[_], H[_]]
+    (implicit containsHK: ContainsHKLub[L, H]): Aux[L, H, containsHK.R, containsHK.Lub] = containsHK
+
+  implicit def head[H[_], K[_], L[_] <: CoproductK[_]](
+    implicit ev: H[_] <:< K[_]
+  ): ContainsHKLub.Aux[ConsK[K, L, ?], H, L, K] =
+    new ContainsHKLub[ConsK[K, L, ?], H] {
+      type R[t] = L[t]
+      type Lub[t] = K[t]
+
+      def extract[A](la: ConsK[K, L, A]): Option[K[A]] = la match {
+        case Inlk(h) => Some(h)
+        case Inrk(_) => None
+      }
+
+      def build[A](ha: H[A]): ConsK[K, L, A] = Inlk(ha.asInstanceOf[K[A]])
+    }
+
+}
+
+
+trait LowerContainsHKLub {
+
+  implicit def corec[H[_], K[_], L[_] <: CoproductK[_], RT[_] <: CoproductK[_], RTLub[_]](
+    implicit next: ContainsHKLub.Aux[L, H, RT, RTLub]
+  ): ContainsHKLub.Aux[ConsK[K, L, ?], H, ConsK[K, RT, ?], RTLub] =
+    new ContainsHKLub[ConsK[K, L, ?], H] {
+      type R[t] = ConsK[K, RT, t]
+      type Lub[t] = RTLub[t]
+
+      def extract[A](la: ConsK[K, L, A]): Option[RTLub[A]] = la match {
+        case Inlk(h) => None
+        case Inrk(r) => next.extract(r)
+      }
+
+      def build[A](ha: H[A]): ConsK[K, L, A] = Inrk(next.build(ha))
+    }
+}
+
+
 
 trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
   def apply[A](l: L[A]): L2[A]
