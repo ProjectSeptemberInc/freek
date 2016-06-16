@@ -133,8 +133,7 @@ def program(id: String) =
   } yield (file)
 ```
 
-- Every line must be lifted to `Free[PRG#Cop, A]` with `.free[PRG]`
-- `PRG#Cop` builds the real hidden Sum/Coproduct type which is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it. Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
 - the whole for-comprehension describes a program
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
@@ -246,7 +245,7 @@ object DB {
 object DBService {
   import DB._
 
-  type PRG[A] = Log.DSL :|: DB.DSL :|: FXNil
+  type PRG = Log.DSL :|: DB.DSL :|: FXNil
 
   /** the program */
   def findById(id: String): Free[PRG, Entity] =
@@ -435,7 +434,7 @@ Finally, if you are able to lift all your `Free[PRG, Option[A] or Xor[String, A]
 Let's give an example of it:
 
 ```scala
-type PRG = (Bar :|: Foo :|: Log.DSL :|: FXNil
+type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 val prg = for {
@@ -464,9 +463,9 @@ val fut = prg.value.interpret(interpreters)
 <br/>
 #### unstack results with `.dropRight`
 
-Sometimes, if you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
+Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
 
-You can do that using `.dropRight` that will unstack `Option` from the onion and `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`
+You can do that using `.dropRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
 
 For example, you could do the following:
 
