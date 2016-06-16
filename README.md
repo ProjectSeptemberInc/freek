@@ -462,7 +462,7 @@ val fut = prg.value.interpret(interpreters)
 ```
 
 <br/>
-#### unstack results with `.dropRight`
+#### Unstack results with `.dropRight`
 
 Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
 
