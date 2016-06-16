@@ -133,8 +133,9 @@ def program(id: String) =
   } yield (file)
 ```
 
-- Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it. Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
-- the whole for-comprehension describes a program
+- Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
+- The whole for-comprehension describes a program
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
