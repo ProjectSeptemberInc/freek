@@ -12,6 +12,12 @@
 ## Current Version
 
 <br/>
+### v0.4.0:
+
+- replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
+- introduced OnionT manipulations `.dropRight`, `.prepend`
+
+<br/>
 ### v0.3.0:
 
 - replaces Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]` and not just Free
