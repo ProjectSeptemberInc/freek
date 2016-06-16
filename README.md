@@ -12,6 +12,12 @@
 ## Current Version
 
 <br/>
+### v0.4.0:
+
+- replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
+- introduced OnionT manipulations `.dropRight`, `.prepend`
+
+<br/>
 ### v0.3.0:
 
 - replaces Freenion by OnionT which generalized the Onion embedding to any structure of type `TC[_[_], _]` and not just Free
@@ -36,11 +42,18 @@ Freek is just a few helpers & tricks to make it straightforward to manipulate Fr
 
 scalaVersion := "2.11.8"
 
+resolvers += Resolver.bintrayRepo("projectseptember", "maven")
+
 libraryDependencies ++= Seq(
-  "com.projectseptember"            %% "freek"                        % "0.3.0"
+  "com.projectseptember"            %% "freek"                        % "0.4.0"
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
 , "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
 )
+```
+
+```
+# in plugins.sbt
+addSbtPlugin("me.lessis" % "bintray-sbt" % "0.3.0")
 ```
 
 `KindProjector` plugin isn't required but it makes higher-kinded types so nicer that I can't do anything else than advising to use it.
@@ -84,14 +97,15 @@ So this program will use Log `or` KVS `or` File which is a Sum/Coproduct of the 
 To represent the DSL summing them all, Freek provides you with the following notation:
 
 ```scala
-type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
+type PRG = Log :|: KVS :|: File :|: FXNil
 ```
 
 Please note:
 
 - `FXNil` is required at the end of the coproduct
-- `#Cop[A]` builds the real hidden Sum/Coproduct type which is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
 - Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types...
+
+> in version <0.4.0', `#Cop[A]` was required to build the real hidden Sum/Coproduct type combining all DSL but after a remark from Daniel Spiewak, it has appeared to be useless
 
 <br/>
 <br/>
@@ -108,7 +122,7 @@ In a summary, you need a conversion `DSL[A] => Free[DSL, A] => Free[PRG, A]`.
 This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 
 ```scala
-type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]
+type PRG = Log :|: KVS :|: File :|: FXNil
 
 def program(id: String) = 
   for {
@@ -119,8 +133,9 @@ def program(id: String) =
   } yield (file)
 ```
 
-- Every line must be lifted to `Free[PRG, A]`
-- the whole for-comprehension describes a program
+- Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
+- The whole for-comprehension describes a program
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
@@ -199,7 +214,7 @@ Remark that:
 <br/>
 #### Execute your program using `interpret`
 
-`program` is just a `Free[PRG, A]`, right?
+`program` is just a `Free[PRG#Cop, A]`, right?
 
 So you could use simply `foldMap/compile` with your `interpreter.nat`.
 
@@ -211,7 +226,7 @@ val fut = program.interpret(interpreter) // this returns a Future[Unit]
 
 <br/>
 <br/>
-### Combine programs together with operator `:||:` (SUPER-OR)
+### Combine programs together with same operator `:|:` (SUPER-OR)
 
 The big interest of Free programs is that you can call a Free program inside a Free program. In this case, logically, you need to combine the DSL of both programs into one single DSL and lift all your Free to this bigger DSL.
 
@@ -231,7 +246,7 @@ object DB {
 object DBService {
   import DB._
 
-  type PRG[A] = (Log.DSL :|: DB.DSL :|: FXNil)#Cop[A]
+  type PRG = Log.DSL :|: DB.DSL :|: FXNil
 
   /** the program */
   def findById(id: String): Free[PRG, Entity] =
@@ -250,7 +265,7 @@ To combine an existing combination of DSL into a new program, use the operator `
 
 ```scala
 
-  type PRG[A] = (Log :|: KVS :|: File :||: DBService.PRG)#Cop[A]
+  type PRG = Log :|: KVS :|: File :|: DBService.PRG
 
   def program2(id: String) = 
   for {
@@ -266,7 +281,7 @@ To combine an existing combination of DSL into a new program, use the operator `
 Please note:
 
 - there is no `FXNil` at the end because it's brought by `DBService.PRG`
-- `:||:` appends a list of DSL at the end
+- `:|:` also appends a list of DSL at the end
 
 
 <br/>
@@ -388,16 +403,16 @@ for {
 So, in the for-comprehension, we need to unify types on every line:
 
 ```scala
-Free[PRG, Option[A]]
+Free[PRG#Cop, Option[A]]
 // and
-Free[PRG, Xor[String, A]]
+Free[PRG#Cop, Xor[String, A]]
 
 // into
-Free[PRG, Xor[String, Option[A]]]
+Free[PRG#Cop, Xor[String, Option[A]]]
 
 // which is
 type O = Xor[String, ?] :&: Option :&: Bulb
-Free[PRG, O#Build]
+Free[PRG#Cop, O#Build]
 ```
 
 As you can expect, that's not enough, you need something more to do what we want.
@@ -420,7 +435,7 @@ Finally, if you are able to lift all your `Free[PRG, Option[A] or Xor[String, A]
 Let's give an example of it:
 
 ```scala
-type PRG[A] = (Bar :|: Foo :|: Log.DSL :|: FXNil)#Cop[A]
+type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 val prg = for {
@@ -438,13 +453,36 @@ Remark that `.oniontT[O]` is used in all cases to lift to `OnionT[Free, PRG, O, 
 <br/>
 #### Execute an OnionT with `.value`
 
-`prg` has type `OnionT[Free, PRG, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
+`prg` has type `OnionT[Free, PRG#Cop, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
 
 It's as simple as you would do with Monad Transformers: access the underlying Free with `.value`
 
 ```scala
 val fut = prg.value.interpret(interpreters)
 ```
+
+<br/>
+#### Unstack results with `.dropRight`
+
+Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
+
+You can do that using `.dropRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
+
+For example, you could do the following:
+
+```scala
+val prg = for {
+  iOpt  <-  Foo1("5").freek[PRG].onionT[O].dropRight
+  i2    <-  iOpt match {
+              case Some(i) => Foo2(i).freek[PRG].onionT[O].dropRight
+              case None => Foo2(0).freek[PRG].onionT[O].dropRight
+            }
+  ...
+}
+```
+
+> there is also a `.prepend[F[_]]` that can prepend a F to an existing Onion O
+
 
 <br/>
 <br/>

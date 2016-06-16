@@ -230,3 +230,55 @@ object Expander {
   }
 }
 
+
+
+trait DropRight[S <: Onion] {
+  type OutS <: Onion
+  type Out[_]
+
+  def dropRight[A](s: S#Build[A]): OutS#Build[Out[A]]
+}
+
+object DropRight {
+
+  type Aux[S <: Onion, OutS0 <: Onion, Out0[_]] = DropRight[S] { type OutS = OutS0; type Out[t] = Out0[t] }
+
+  def apply[S <: Onion](implicit dr: DropRight[S]) = dr
+
+  implicit def first[H[_]]: DropRight.Aux[H :&: Bulb, Bulb, H] = new DropRight[H :&: Bulb] {
+    type OutS = Bulb
+    type Out[t] = H[t]
+
+    def dropRight[A](hka: (H :&: Bulb)#Build[A]): Bulb#Build[H[A]] = {
+      hka
+    }
+  }
+
+  implicit def cons[H[_]:Functor, S <: Onion, NextS <: Onion, Next[_]](
+    implicit next: DropRight.Aux[S, NextS, Next]
+  ): DropRight.Aux[H :&: S, H :&: NextS, Next] = new DropRight[H :&: S] {
+    type OutS = H :&: NextS
+    type Out[t] = Next[t]
+
+    def dropRight[A](hsa: (H :&: S)#Build[A]): (H :&: NextS)#Build[Next[A]] =
+      Functor[H].map(hsa){ sa => next.dropRight(sa) }
+  }
+}
+
+
+trait Prepend[H[_], S <: Onion] {
+  type Out <: Onion
+
+  def prepend[A](s: S#Build[A]): Out#Build[A]
+}
+
+
+object Prepend {
+
+  def apply[H[_], S <: Onion](implicit Prepend: Prepend[H, S]) = Prepend
+
+  implicit def build[H[_]: Applicative, S <: Onion] = new Prepend[H, S] {
+    type Out = H :&: S
+    def prepend[A](s: S#Build[A]): (H :&: S)#Build[A] = Applicative[H].pure(s)
+  }
+}

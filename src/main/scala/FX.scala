@@ -23,9 +23,6 @@ sealed trait :|:[H[_], T <: FX] extends FX {
   type Cop[t] = ConsK[H, T#Cop, t]
 }
 
-sealed trait :||:[H[_], T[_] <: CoproductK[_]] extends FX {
-  type Cop[t] = ConsK[H, T, t]
-}
 
 sealed trait FXNil extends FX {
   type Cop[t] = CNilK[t]
