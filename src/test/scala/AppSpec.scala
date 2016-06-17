@@ -460,17 +460,17 @@ class AppSpec extends FlatSpec with Matchers {
     type PRG = Foo :|: Log.DSL :|: PRG2
 
     val prg = for {
-      iOpt  <-  Foo1("5").freek[PRG].onionT[O].dropRight
+      iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
       i2    <-  iOpt match {
-                  case Some(i) => Foo2(i).freek[PRG].onionT[O].dropRight
-                  case None => Foo2(0).freek[PRG].onionT[O].dropRight
+                  case Some(i) => Foo2(i).freek[PRG].onionT[O].peelRight
+                  case None => Foo2(0).freek[PRG].onionT[O].peelRight
                 }
-      _     <-  Log.info("toto " + i2).freek[PRG].onionT[O].dropRight
-      _     <-  Foo3.freek[PRG].onionT[O].dropRight
-      s     <-  Bar1(i2.toString).freek[PRG].onionT[O].dropRight
+      _     <-  Log.info("toto " + i2).freek[PRG].onionT[O].peelRight
+      _     <-  Foo3.freek[PRG].onionT[O].peelRight
+      s     <-  Bar1(i2.toString).freek[PRG].onionT[O].peelRight
       i3    <-  i2 match {
-                  case Some(i) => Foo4(i).freek[PRG].onionT[O].dropRight
-                  case None => Foo4(0).freek[PRG].onionT[O].dropRight
+                  case Some(i) => Foo4(i).freek[PRG].onionT[O].peelRight
+                  case None => Foo4(0).freek[PRG].onionT[O].peelRight
                 }
     } yield (i3)
 
@@ -599,8 +599,67 @@ class AppSpec extends FlatSpec with Matchers {
       .freek[PRG]
       .onionT[Xor[String, ?] :&: Option :&: Bulb]
       .prepend[List]
-      .dropRight
+      .peelRight
   
   }
 
+  "freek" should "manage monadic onions with freeko" in {
+    import cats.std.future._
+    import cats.std.option._
+    import cats.std.list._
+    import ExecutionContext.Implicits.global
+
+    sealed trait Foo[A]
+    final case class Foo1(s: String) extends Foo[List[Option[Int]]]
+    final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
+    final case object Foo3 extends Foo[Unit]
+    final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
+
+    sealed trait Bar[A]
+    final case class Bar1(s: String) extends Bar[Option[String]]
+    final case class Bar2(i: Int) extends Bar[Xor[String, String]]
+
+    type PRG2 = Bar :|: Log.DSL :|: FXNil
+
+    type O = List :&: Xor[String, ?] :&: Option :&: Bulb
+
+    type PRG = Foo :|: Log.DSL  :|: PRG2
+
+    val prg = for {
+      i     <- Foo1("5").freeko[PRG, O]
+      i2    <- Foo2(i).freeko[PRG, O]
+      _     <- Log.info("toto " + i).freeko[PRG, O]
+      _     <- Foo3.freeko[PRG, O]
+      s     <- Bar1(i2.toString).freeko[PRG, O]
+      i3    <- Foo4(i2).freeko[PRG, O]
+    } yield (i3)
+
+    val logger2Future = new (Log.DSL ~> Future) {
+      def apply[A](a: Log.DSL[A]) = a match {
+        case Log.LogMsg(lvl, msg) =>
+          Future.successful(println(s"$lvl $msg"))
+      }
+    }
+
+    val foo2Future = new (Foo ~> Future) {
+      def apply[A](a: Foo[A]) = a match {
+        case Foo1(s) => Future { List(Some(s.toInt)) } // if you put None here, it stops prg before Log
+        case Foo2(i) => Future(Xor.right(i))
+        case Foo3 => Future.successful(())
+        case Foo4(i) => Future.successful(Xor.right(Some(i)))
+      }
+    }
+
+    val bar2Future = new (Bar ~> Future) {
+      def apply[A](a: Bar[A]) = a match {
+        case Bar1(s) => Future { Some(s) } // if you put None here, it stops prg before Log
+        case Bar2(i) => Future(Xor.right(i.toString))
+      }
+    }
+
+    val interpreters = foo2Future :&: logger2Future :&: bar2Future
+
+    Await.result(prg.value.interpret(interpreters), 10.seconds)
+  
+  }
 }

@@ -27,14 +27,14 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
       }
     )
 
-  def dropRight(
+  def peelRight(
     implicit
       tcMonad: Monad[TC[F, ?]]
-    , dr: DropRight[S]
+    , dr: PeelRight[S]
   ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
     OnionT[TC, F, dr.OutS, dr.Out[A]](
       tcMonad.map(value){ sba: S#Build[A] =>
-        dr.dropRight(sba)
+        dr.peelRight(sba)
       }
     )
 
@@ -115,15 +115,15 @@ object OnionT extends OnionTInstances {
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter.lift(fa) })
 
-  // def liftT3[TC[_[_], _], F[_], S <: Onion, GA](fa: TC[F, GA])(
-  //   implicit
-  //     tcMonad: Monad[TC[F, ?]]
-  //   , lifter2: Lifter2[GA, S]
-  //   , mapper: Mapper[S]
-  //   , binder: Binder[S]
-  //   , traverser: Traverser[S]
-  // ): OnionT[TC, F, S, lifter2.A] =
-  //   OnionT(tcMonad.map(fa){ fa => lifter2.lift2(fa) })
+  def liftT3[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , lifter2: Lifter2.Aux[GA, S, A]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    , traverser: Traverser[S]
+  ): OnionT[TC, F, S, A] =
+    OnionT(tcMonad.map(fa){ fa => lifter2.lift2(fa) })
 }
 
 trait OnionTInstances {
@@ -148,73 +148,3 @@ trait OnionTInstances {
 
 }
 
-trait OnionTHelpers {
-
-  implicit class toOnionT2[TC[_[_], _], F[_], G[_], H[_], A](tc: TC[F, G[H[A]]]) {
-
-    def onionT[S <: Onion](
-    implicit 
-        tcMonad: Monad[TC[F, ?]]
-      , lifter: Lifter[λ[t => G[H[t]]], S]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ): OnionT[TC, F, S, A] =
-      OnionT.liftT2(tc)
-
-  }
-
-  implicit class toOnionT[TC[_[_], _], F[_], G[_], A](tc: TC[F, G[A]]) {
-
-    def onionT[S <: Onion](
-      implicit 
-        tcMonad: Monad[TC[F, ?]]
-      , lifter: Lifter[G, S]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ): OnionT[TC, F, S, A] =
-      OnionT.liftT(tc)
-
-    def onionP[S <: Onion](
-      implicit 
-        tcMonad: Monad[TC[F, ?]]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ) = OnionT.liftP(tc)
-
-  }
-
-  implicit class toOnionP[TC[_[_], _], F[_], A](tc: TC[F, A]) {
-
-    def onionT[S <: Onion](
-    implicit 
-        tcMonad: Monad[TC[F, ?]]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ): OnionT[TC, F, S, A] =
-      OnionT.liftP(tc)
-
-  }
-
-  // case class toOnionT3[TC[_[_], _], F[_], GA](tc: TC[F, GA]) {
-
-  //   def onionT[S <: Onion](
-  //   implicit 
-  //       tcMonad: Monad[TC[F, ?]]
-  //     , lifter2: Lifter2[GA, S]
-  //     , pointer: Pointer[S]
-  //     , mapper: Mapper[S]
-  //     , binder: Binder[S]
-  //     , traverser: Traverser[S]
-  //   ): OnionT[TC, F, S, lifter2.A] =
-  //     OnionT.liftT3(tc)
-
-  // }
-}
