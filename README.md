@@ -12,6 +12,12 @@
 ## Current Version
 
 <br/>
+### v0.4.1:
+
+- evaluating `.freeko[PRG, O]` which is equivalent to `.freek[PRG].onionT[O]`
+- renamed `dropRight -> peelRight` and `prepend -> wrap`
+
+<br/>
 ### v0.4.0:
 
 - replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
@@ -45,7 +51,7 @@ scalaVersion := "2.11.8"
 resolvers += Resolver.bintrayRepo("projectseptember", "maven")
 
 libraryDependencies ++= Seq(
-  "com.projectseptember"            %% "freek"                        % "0.4.0"
+  "com.projectseptember"            %% "freek"                        % "0.4.1"
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
 , "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
 )
@@ -460,6 +466,34 @@ It's as simple as you would do with Monad Transformers: access the underlying Fr
 ```scala
 val fut = prg.value.interpret(interpreters)
 ```
+
+<br/>
+#### `.freeko[PRG, O]` for the very lazy
+
+Ok, writing `.freek[PRG].onionT[O]` on each line is boring, right?
+
+Freek provides a shortcut called `freeko` that combines both calls in one single.
+
+> `freeko` is still in evaluation as it requires some type crafting so if you see weird cases, don't hesitate to report
+
+Here is your program with `freeko`:
+
+```scala
+type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
+type O = Xor[String, ?] :&: Option :&: Bulb
+
+val prg = for {
+  i     <- Foo1("5").freeko[PRG, O]
+  i2    <- Foo2(i).freeko[PRG, O]
+  _     <- Log.info("toto " + i).freeko[PRG, O]
+  _     <- Foo3.freeko[PRG, O]
+  s     <- Bar1(i2.toString).freeko[PRG, O]
+  i3    <- Foo4(i2).freeko[PRG, O]
+} yield (i3)
+```
+
+Ok, that's enough simplifications...
+
 
 <br/>
 #### Unstack results with `.peelRight`
