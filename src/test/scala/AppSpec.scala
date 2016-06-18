@@ -145,7 +145,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-
+/*
   "ShapeApp" should "freek" in {
 
     object DBService {
@@ -602,7 +602,7 @@ class AppSpec extends FlatSpec with Matchers {
       .peelRight
   
   }
-
+*/
   "freek" should "manage monadic onions with freeko" in {
     import cats.std.future._
     import cats.std.option._

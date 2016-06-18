@@ -6,21 +6,21 @@ import cats.free.Free
 /** a few implicit conversions */
 package object freek extends HK {
 
-  // case class toOnionT3[TC[_[_], _], F[_], GA, Out[_], A](val tc: TC[F, GA])(
-  //   implicit ga: HKK.Aux[GA, Out, A]
-  // ) {
+  case class toOnionT3[TC[_[_], _], F[_], GA, A](val tc: TC[F, GA])(
+    implicit ga: HKK.Aux[GA, A]
+  ) {
 
-  //   @inline def onionT[S <: Onion](
-  //     implicit 
-  //       tcMonad: Monad[TC[F, ?]]
-  //     , lifter2: Lifter2.Aux[GA, S, A]
-  //     , pointer: Pointer[S]
-  //     , mapper: Mapper[S]
-  //     , binder: Binder[S]
-  //     , traverser: Traverser[S]
-  //   ): OnionT[TC, F, S, A] =
-  //     OnionT.liftT3(tc)
-  // }
+    @inline def onionT[S <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , lifter2: Lifter2.Aux[GA, S, A]
+      , pointer: Pointer[S]
+      , mapper: Mapper[S]
+      , binder: Binder[S]
+      , traverser: Traverser[S]
+    ): OnionT[TC, F, S, A] =
+      OnionT.liftT3(tc)
+  }
 
   implicit class toOnionT2[TC[_[_], _], F[_], G[_], H[_], A](val tc: TC[F, G[H[A]]]) extends AnyVal {
 
@@ -75,25 +75,28 @@ package object freek extends HK {
 
   }
 
-  // implicit class ToFreek4[F[_], GHA, Out[_], A](val fa: F[GHA])(implicit ga: HKK.Aux[GHA, Out, A]) {
-  //   @inline def freek0: Free[ConsK[F, CNilK, ?], GHA] = Freek(fa)
+  /** Will deconstruct G[HA] using HKK & Lifter2 if HA is not simply */
+  implicit class ToFreek4[F[_], G[_], HA, A](val fa: F[G[HA]]) extends AnyVal {
+    @inline def freek0: Free[ConsK[F, CNilK, ?], G[HA]] = Freek(fa)
 
-  //   @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, GHA] =
-  //     Freek.expand[ConsK[F, CNilK, ?], C#Cop, GHA](freek0)
+    @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, G[HA]] =
+      Freek.expand[ConsK[F, CNilK, ?], C#Cop, G[HA]](freek0)
 
-  //   @inline def upcast[T](implicit f: F[GHA] <:< T): T = fa
+    @inline def upcast[T](implicit f: F[G[HA]] <:< T): T = fa
     
-  //   @inline def freeko[C <: FX, S <: Onion](
-  //     implicit 
-  //       sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
-  //     , lifter: Lifter2.Aux[GHA, S, A]
-  //     , pointer: Pointer[S]
-  //     , mapper: Mapper[S]
-  //     , binder: Binder[S]
-  //     , traverser: Traverser[S]
-  //   ) = toOnionT3(freek[C]).onionT[S]
-  // }
+    @inline def freeko[C <: FX, S <: Onion](
+      implicit 
+        ga: HKK.Aux[G[HA], A]
+      , sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
+      , lifter2: Lifter2.Aux[G[HA], S, A]
+      , pointer: Pointer[S]
+      , mapper: Mapper[S]
+      , binder: Binder[S]
+      , traverser: Traverser[S]
+    ) = toOnionT3(freek[C]).onionT[S]
+  }
 
+/*
   implicit class ToFreek3[F[_], G[_], H[_], A](val fa: F[G[H[A]]]) extends AnyVal {
     @inline def freek0: Free[ConsK[F, CNilK, ?], G[H[A]]] = Freek(fa)
 
@@ -131,7 +134,7 @@ package object freek extends HK {
       , traverser: Traverser[S]
     ) = toOnionT(freek[C]).onionT[S]
   }
-
+*/
   implicit class ToFreek[F[_], A](val fa: F[A]) extends AnyVal {
     @inline def freek0: Free[ConsK[F, CNilK, ?], A] = Freek(fa)
 

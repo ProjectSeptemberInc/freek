@@ -248,20 +248,31 @@ object Prepend {
 }
 
 trait HKK[FA] {
-  type Out[_]
   type A
 }
 
-object HKK {
+object HKK extends HKK3 {
 
-  type Aux[FA, Out0[_], A0] = HKK[FA] { type Out[t] = Out0[t]; type A = A0 }
+  type Aux[FA, A0] = HKK[FA] { type A = A0 }
 
-  // implicit def hk3[F[_], G[_], H[_], A0]: HKK.Aux[F[G[H[A0]]], λ[t => F[G[H[t]]]], A0] = new HKK[F[G[H[A0]]]] { type Out[t] = F[G[H[t]]]; type A = A0 }
+}
 
-  implicit def hk2[F[_], G[_], A0]: HKK.Aux[F[G[A0]], λ[t => F[G[t]]], A0] = new HKK[F[G[A0]]] { type Out[t] = F[G[t]]; type A = A0 }
+trait HKK3 extends HKK2 {
+  implicit def hk3[F[_], G[_], H[_], A0]: HKK.Aux[F[G[H[A0]]], A0] = new HKK[F[G[H[A0]]]] {
+    type A = A0
+  }
+}
 
-  // implicit def hk1[F[_], A0]: HKK.Aux[F[A0], F, A0] = new HKK[F[A0]] { type Out[t] = F[t]; type A = A0 }
+trait HKK2 extends HKK1 {
+  implicit def hk2[F[_], G[_], A0]: HKK.Aux[F[G[A0]], A0] = new HKK[F[G[A0]]] {
+    type A = A0
+  }
+}
 
+trait HKK1 {
+  implicit def hk1[F[_], A0]: HKK.Aux[F[A0], A0] = new HKK[F[A0]] {
+    type A = A0
+  }
 }
 
 @implicitNotFound("could not lift2 ${HA} into Onion ${S}; either ${S} does not contain a constructor of ${HA}, or there is no Applicative Functor for a constructor of ${S}")
