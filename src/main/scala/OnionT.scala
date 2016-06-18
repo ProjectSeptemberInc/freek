@@ -38,14 +38,14 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
       }
     )
 
-  def prepend[H[_]](
+  def wrap[H[_]](
     implicit
       tcMonad: Monad[TC[F, ?]]
-    , ul: Prepend[H, S]
+    , ul: Wrap[H, S]
   ): OnionT[TC, F, ul.Out, A] =
     OnionT[TC, F, ul.Out, A](
       tcMonad.map(value){ sba: S#Build[A] =>
-        ul.prepend(sba)
+        ul.wrap(sba)
       }
     )
 

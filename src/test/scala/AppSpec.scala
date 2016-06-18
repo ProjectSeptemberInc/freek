@@ -145,7 +145,7 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-/*
+
   "ShapeApp" should "freek" in {
 
     object DBService {
@@ -579,7 +579,7 @@ class AppSpec extends FlatSpec with Matchers {
   
   }  
 
-  "freek" should "manage monadic onions of result types downLeft/upRight" in {
+  "freek" should "manage monadic onions of result types wrap/peelRight" in {
 
     sealed trait Foo[A]
     final case class Foo1(s: String) extends Foo[Option[Int]]
@@ -598,11 +598,11 @@ class AppSpec extends FlatSpec with Matchers {
       Foo1("5")
       .freek[PRG]
       .onionT[Xor[String, ?] :&: Option :&: Bulb]
-      .prepend[List]
+      .wrap[List]
       .peelRight
   
   }
-*/
+
   "freek" should "manage monadic onions with freeko" in {
     import cats.std.future._
     import cats.std.option._

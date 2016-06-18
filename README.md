@@ -462,7 +462,7 @@ val fut = prg.value.interpret(interpreters)
 ```
 
 <br/>
-#### Unstack results with `.dropRight`
+#### Unstack results with `.peelRight`
 
 Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
 
@@ -472,10 +472,10 @@ For example, you could do the following:
 
 ```scala
 val prg = for {
-  iOpt  <-  Foo1("5").freek[PRG].onionT[O].dropRight
+  iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
   i2    <-  iOpt match {
-              case Some(i) => Foo2(i).freek[PRG].onionT[O].dropRight
-              case None => Foo2(0).freek[PRG].onionT[O].dropRight
+              case Some(i) => Foo2(i).freek[PRG].onionT[O].peelRight
+              case None => Foo2(0).freek[PRG].onionT[O].peelRight
             }
   ...
 }

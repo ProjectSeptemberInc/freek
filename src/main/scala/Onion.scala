@@ -230,20 +230,20 @@ object PeelRight {
 }
 
 
-trait Prepend[H[_], S <: Onion] {
+trait Wrap[H[_], S <: Onion] {
   type Out <: Onion
 
-  def prepend[A](s: S#Build[A]): Out#Build[A]
+  def wrap[A](s: S#Build[A]): Out#Build[A]
 }
 
 
-object Prepend {
+object Wrap {
 
-  def apply[H[_], S <: Onion](implicit Prepend: Prepend[H, S]) = Prepend
+  def apply[H[_], S <: Onion](implicit Wrap: Wrap[H, S]) = Wrap
 
-  implicit def build[H[_]: Applicative, S <: Onion] = new Prepend[H, S] {
+  implicit def build[H[_]: Applicative, S <: Onion] = new Wrap[H, S] {
     type Out = H :&: S
-    def prepend[A](s: S#Build[A]): (H :&: S)#Build[A] = Applicative[H].pure(s)
+    def wrap[A](s: S#Build[A]): (H :&: S)#Build[A] = Applicative[H].pure(s)
   }
 }
 
