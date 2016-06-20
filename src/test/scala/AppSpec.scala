@@ -662,4 +662,127 @@ class AppSpec extends FlatSpec with Matchers {
     Await.result(prg.value.interpret(interpreters), 10.seconds)
   
   }
+
+  "freek" should "allow declaring local programs" in {
+    
+    trait RepositoryLayer {
+      sealed trait Account
+
+      sealed trait RepoF[A]
+
+      sealed trait Repo[A]
+      case class Query(no: String) extends Repo[Xor[String, Account]]
+      case class Store(account: Account) extends Repo[Xor[String, Account]]
+      case class Delete(no: String) extends Repo[Xor[String, Unit]]
+
+      object Repo {
+        type PRG = Repo :|: FXNil
+        type O = Xor[String, ?] :&: Bulb
+      }
+
+      def query(no: String) = Query(no)
+      def store(account: Account) = Store(account)
+      def delete(no: String) = Delete(no)
+
+      // How do I write this function here ?     
+      def update(no: String, f: Account => Account) = for {
+        a <-  Query(no).freeko[Repo.PRG, Repo.O]
+        _ <-  Store(f(a)).freeko[Repo.PRG, Repo.O]
+      } yield (())
+    }
+
+    trait FooLayer {
+      sealed trait Foo[A]
+      final case class Foo1(s: String) extends Foo[List[Option[Int]]]
+      final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
+      final case object Foo3 extends Foo[Unit]
+      final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
+    }
+
+    trait BarLayer {
+
+      sealed trait Bar[A]
+      final case class Bar1(s: String) extends Bar[Option[String]]
+      final case class Bar2(i: Int) extends Bar[Xor[String, String]]
+
+      object Bar {
+        type PRG = Bar :|: Log.DSL :|: FXNil
+      }
+
+    }
+
+    object Prg
+      extends RepositoryLayer
+      with FooLayer
+      with BarLayer {
+
+      type O = List :&: Xor[String, ?] :&: Option :&: Bulb
+
+      type PRG = Foo :|: Log.DSL :|: Bar.PRG :||: Repo.PRG
+      
+      val prg = for {
+        i     <- Foo1("5").freeko[PRG, O]
+        i2    <- Foo2(i).freeko[PRG, O]
+        _     <- Log.info("toto " + i).freeko[PRG, O]
+        _     <- Foo3.freeko[PRG, O]
+        s     <- Bar1(i2.toString).freeko[PRG, O]
+        i3    <- Foo4(i2).freeko[PRG, O]
+        _     <- update(i.toString, identity).freeko[PRG, O]
+      } yield (i3)
+
+      val logger2Future = new (Log.DSL ~> Future) {
+        def apply[A](a: Log.DSL[A]) = a match {
+          case Log.LogMsg(lvl, msg) =>
+            Future.successful(println(s"$lvl $msg"))
+        }
+      }
+
+      val foo2Future = new (Foo ~> Future) {
+        def apply[A](a: Foo[A]) = a match {
+          case Foo1(s) => Future { List(Some(s.toInt)) } // if you put None here, it stops prg before Log
+          case Foo2(i) => Future(Xor.right(i))
+          case Foo3 => Future.successful(())
+          case Foo4(i) => Future.successful(Xor.right(Some(i)))
+        }
+      }
+
+      val bar2Future = new (Bar ~> Future) {
+        def apply[A](a: Bar[A]) = a match {
+          case Bar1(s) => Future { Some(s) } // if you put None here, it stops prg before Log
+          case Bar2(i) => Future(Xor.right(i.toString))
+        }
+      }
+
+      val repo2Future = new (Repo ~> Future) {
+        def apply[A](a: Repo[A]) = a match {
+          case Query(s) => Future { Xor.right(new Account {}) }
+          case Store(acc) => Future { Xor.right(new Account {}) }
+          case Delete(no) => Future { Xor.right(()) }
+        }
+      }
+
+      val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: repo2Future
+
+      Await.result(prg.value.interpret(interpreters), 10.seconds)
+    }
+
+  }
 }
+
+
+// SubFX[Bar, Bar.PRG :||: Repo.PRG]
+// SubFX.subfxNext[Bar, Foo, Log.DSL :|: Bar.PRG, ConsK[Log.DSL, ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?], ?]]
+// ToCopK.head[Bar, Log.DSL :|: FXNil, ConsK[Log.DSL, CNilK, ?]]
+// implicitly[ToCopK[Bar.PRG, ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?]]]
+// ToCopK[Repo.PRG, ConsK[Repo, CNilK, ?]]
+// val l: ToCopK[Bar.PRG :||: Repo.PRG, ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]] = ToCopK.merge[
+//   Bar.PRG, Repo.PRG
+// , ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?]
+// , ConsK[Repo, CNilK, ?]
+// , ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]
+// ]
+// ToCopK[Bar.PRG :||: Repo.PRG, ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]]
+// SubFX.subfx[Foo, Log.DSL :|: Bar.PRG]
+// SubFX.subfx[Foo, Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
+// SubFX[Foo, Foo :|: Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
+// SubFX[Bar, Foo :|: Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
