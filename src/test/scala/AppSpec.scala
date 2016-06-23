@@ -145,7 +145,6 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
 
-
   "ShapeApp" should "freek" in {
 
     object DBService {
@@ -625,7 +624,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     type PRG = Foo :|: Log.DSL  :|: PRG2
 
-    val prg = for {
+    val prg: OnionT[Free, PRG#Cop, O, Int] = for {
       i     <- Foo1("5").freeko[PRG, O]
       i2    <- Foo2(i).freeko[PRG, O]
       _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -691,36 +690,39 @@ class AppSpec extends FlatSpec with Matchers {
       } yield (())
     }
 
-    trait FooLayer {
+    trait FooLayer extends RepositoryLayer {
       sealed trait Foo[A]
       final case class Foo1(s: String) extends Foo[List[Option[Int]]]
       final case class Foo2(i: Int) extends Foo[Xor[String, Int]]
       final case object Foo3 extends Foo[Unit]
       final case class Foo4(i: Int) extends Foo[Xor[String, Option[Int]]]
+
+      object Foo {
+        type PRG = Foo :|: Log.DSL :|: Repo.PRG
+      }
     }
 
-    trait BarLayer {
+    trait BarLayer extends RepositoryLayer {
 
       sealed trait Bar[A]
       final case class Bar1(s: String) extends Bar[Option[String]]
       final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
       object Bar {
-        type PRG = Bar :|: Log.DSL :|: FXNil
+        type PRG = Bar :|: Log.DSL :|: Repo.PRG
       }
 
     }
 
     object Prg
-      extends RepositoryLayer
-      with FooLayer
+      extends FooLayer
       with BarLayer {
 
       type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-      type PRG = Foo :|: Log.DSL :|: Bar.PRG :||: Repo.PRG
-      
-      val prg = for {
+      type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
+
+      val prg: OnionT[Free, PRG#Cop, O, Int] = for {
         i     <- Foo1("5").freeko[PRG, O]
         i2    <- Foo2(i).freeko[PRG, O]
         _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -728,7 +730,7 @@ class AppSpec extends FlatSpec with Matchers {
         s     <- Bar1(i2.toString).freeko[PRG, O]
         i3    <- Foo4(i2).freeko[PRG, O]
         _     <- update(i.toString, identity).freeko[PRG, O]
-      } yield (i3)
+      } yield (i)
 
       val logger2Future = new (Log.DSL ~> Future) {
         def apply[A](a: Log.DSL[A]) = a match {
@@ -739,7 +741,7 @@ class AppSpec extends FlatSpec with Matchers {
 
       val foo2Future = new (Foo ~> Future) {
         def apply[A](a: Foo[A]) = a match {
-          case Foo1(s) => Future { List(Some(s.toInt)) } // if you put None here, it stops prg before Log
+          case Foo1(s) => Future { println(s); List(Some(s.toInt)) } // if you put None here, it stops prg before Log
           case Foo2(i) => Future(Xor.right(i))
           case Foo3 => Future.successful(())
           case Foo4(i) => Future.successful(Xor.right(Some(i)))
@@ -762,10 +764,10 @@ class AppSpec extends FlatSpec with Matchers {
       }
 
       val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: repo2Future
-
-      Await.result(prg.value.interpret(interpreters), 10.seconds)
     }
 
+    val r = Await.result(Prg.prg.value.interpret(Prg.interpreters), 10.seconds)
+    println("result:"+r)
   }
 }
 

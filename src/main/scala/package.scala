@@ -176,7 +176,6 @@ package object freek extends HK {
 
   implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[ConsK[F, CNilK, ?], R] = Interpreter(nat)
 
-
   implicit class toOnionT4[C[_]<: CoproductK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) extends AnyVal {
 
     def freeko[F <: FX, O2 <: Onion](
