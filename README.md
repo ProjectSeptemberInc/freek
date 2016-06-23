@@ -12,6 +12,16 @@
 ## Current Version
 
 <br/>
+### v0.4.3:
+
+- introduced `CoproductK.AppendK` to make it robust to combine programs containing sub-programs
+
+<br/>
+### v0.4.2:
+
+- beta re-introducing operator `:||:` to combine programs to programs... WIP
+
+<br/>
 ### v0.4.1:
 
 - evaluating `.freeko[PRG, O]` which is equivalent to `.freek[PRG].onionT[O]`
