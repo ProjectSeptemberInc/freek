@@ -563,6 +563,7 @@ object Bar {
 
 You can see that `FXNil` isn't used in `Bar.PRG` and `Foo.PRG` because `:|:` prepends an element DSL to a (coproduct) sequence of DSL and `Repo.PRG` is already a (coproduct) sequence of DSL.
 
+<br/>
 ##### Combine programs with `:||:`
 
 ```scala
