@@ -140,7 +140,8 @@ This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 ```scala
 type PRG = Log :|: KVS :|: File :|: FXNil
 
-def program(id: String) = 
+// Here the type is shown for doc but you can omit it, Scala can infer things
+def program(id: String): Free[PRG#Cop, File] = 
   for {
     _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
     name  <- KVS.Get(id).freek[PRG]
@@ -265,7 +266,8 @@ object DBService {
   type PRG = Log.DSL :|: DB.DSL :|: FXNil
 
   /** the program */
-  def findById(id: String): Free[PRG, Entity] =
+  // Here the type is indicated for doc but you can omit it, Scala can infer things
+  def findById(id: String): Free[PRG#Cop, Entity] =
     for {
       _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
       res  <- FindById(id).freek[PRG]
@@ -283,7 +285,8 @@ To combine an existing combination of DSL into a new program, use the operator `
 
   type PRG = Log :|: KVS :|: File :|: DBService.PRG
 
-  def program2(id: String) = 
+  // Here the type is indicated for doc but you can omit it, Scala can infer things
+  def program2(id: String): Free[PRG#Cop, File] = 
   for {
     _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
     name  <- KVS.Get(id).freek[PRG]
@@ -454,7 +457,8 @@ Let's give an example of it:
 type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
-val prg = for {
+// Here the type is indicated for doc but you can omit it, Scala can infer things
+val prg: OnionT[Free, PRG#Cop, O, Int] = for {
   i     <- Foo1("5").freek[PRG].onionT[O]
   i2    <- Foo2(i).freek[PRG].onionT[O]
   _     <- Log.info("toto " + i).freek[PRG].onionT[O]
@@ -492,7 +496,8 @@ Here is your program with `freeko`:
 type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
-val prg = for {
+// Here the type is indicated for doc but you can omit it, Scala can infer things
+val prg: OnionT[Free, PRG#Cop, O, Int] = for {
   i     <- Foo1("5").freeko[PRG, O]
   i2    <- Foo2(i).freeko[PRG, O]
   _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -503,6 +508,80 @@ val prg = for {
 ```
 
 Ok, that's enough simplifications...
+
+<br/>
+#### Combine sub-programs together with `:||:`
+
+Finally, you can combine existing programs together and also define local programs.
+
+[Debasish Gosh](https://twitter.com/debasishg) asked me how I would define local programs & re-use them in bigger programs.
+
+Let's take his classic example from his great book [Functional and Reactive Domain Modeling](https://www.manning.com/books/functional-and-reactive-domain-modeling) that is clearly related to Freek domain.
+
+<br/>
+##### Define local programs
+
+```scala
+// Repository DSL
+sealed trait Repo[A]
+case class Query(no: String) extends Repo[Xor[String, Account]]
+case class Store(account: Account) extends Repo[Xor[String, Account]]
+case class Delete(no: String) extends Repo[Xor[String, Unit]]
+
+// Repository local program
+object Repo {
+  type PRG = Repo :|: Log :|: FXNil
+  type O = Xor[String, ?] :&: Bulb
+
+  // here you can define a local program re-usable in other programs
+  def update(no: String, f: Account => Account) = for {
+    a <-  Query(no).freeko[PRG, O]
+    _ <-  Store(f(a)).freeko[PRG, O]
+  } yield (())
+}
+
+sealed trait Foo[A]
+...
+
+// Foo can use Repo sub-program
+object Foo {
+  type PRG = Foo :|: Log.DSL :|: Repo.PRG
+
+  def subFoo(...): Free[PRG#Cop, ...] = ...
+}
+
+sealed trait Bar[A]
+...
+
+// Bar can use Repo sub-program too
+object Bar {
+  type PRG = Bar :|: Log.DSL :|: Repo.PRG
+
+  def subBar(...): Free[PRG#Cop, ...] = ...
+}
+```
+
+##### Combine programs with `:||:`
+
+```scala
+type O = List :&: Xor[String, ?] :&: Option :&: Bulb
+
+// Combine all programs using :||:
+type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
+
+// Here the type is indicated for doc but you can omit it
+val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+  ...   <- Foo.subFoo(...).freeko[PRG, O]
+  ...   <- Bar.subBar(...).freeko[PRG, O]
+  _     <- Repo.update(.).freeko[PRG, O]
+} yield (...)
+```
+
+To make the difference between `:|:` and `:||:`, please remind the following:
+
+- `:|:` is like operator `+:` for Scala `Seq`, it prepends an element DSL to a (coproduct) sequence of DSL.
+
+- `:||:` is like operator `++` for Scala `Seq`, it appends 2 (coproduct) sequences of DSL.
 
 
 <br/>
