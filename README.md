@@ -561,7 +561,7 @@ object Bar {
 }
 ```
 
-You can see that `FXNil` isn't used in `Bar.PRG` and `Foo.PRG` because `:|:` an element DSL to a (coproduct) sequence of DSL.
+You can see that `FXNil` isn't used in `Bar.PRG` and `Foo.PRG` because `:|:` prepends an element DSL to a (coproduct) sequence of DSL and `Repo.PRG` is already a (coproduct) sequence of DSL.
 
 ##### Combine programs with `:||:`
 
