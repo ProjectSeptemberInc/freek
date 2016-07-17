@@ -19,7 +19,6 @@ final case class Aplk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](left: L[A
 final case class Aprk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](right: R[A]) extends AppendK[L, R, A]
 
 
-
 trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
   def extract[A](la: L[A]): Option[H[A]]
   def build[A](ha: H[A]): L[A]
@@ -60,7 +59,6 @@ object ContainsHK extends LowerContainsHK {
 
 trait LowerContainsHK {
 
-
   implicit def appendRight[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
     implicit containsRight: ContainsHK[L2, H]
   ): ContainsHK[AppendK[L1, L2, ?], H] =
@@ -86,6 +84,7 @@ trait LowerContainsHK {
 
       def build[A](ha: H[A]): ConsK[K, L, A] = Inrk(next.build(ha))
     }
+
 }
 
 
@@ -199,7 +198,7 @@ trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
   def apply[A](l: L[A]): L2[A]
 }
 
-object SubCop {
+object SubCop extends LowerSubCop {
 
   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
     (implicit subCop: SubCop[L, R]): SubCop[L, R] = subCop
@@ -213,14 +212,9 @@ object SubCop {
     }
   }
 
-  implicit def corec[H[_], L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
-    implicit contains: ContainsHK[L2, H], next: SubCop[L, L2]
-  ) = new SubCop[ConsK[H, L, ?], L2] {
-    def apply[A](l: ConsK[H, L, A]): L2[A] = l match {
-      case Inlk(h) => contains.build(h)
-      case Inrk(r) => next(r)
-    }
-  }
+}
+
+trait LowerSubCop {
 
   implicit def appendk[H[_], L[_] <: CoproductK[_], R[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
     implicit subLeft: SubCop[L, L2], subRight: SubCop[R, L2]
@@ -228,6 +222,15 @@ object SubCop {
     def apply[A](la: AppendK[L, R, A]): L2[A] = la match {
       case Aplk(l) => subLeft(l)
       case Aprk(r) => subRight(r)
+    }
+  }
+
+  implicit def corec[H[_], L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+    implicit contains: ContainsHK[L2, H], next: SubCop[L, L2]
+  ) = new SubCop[ConsK[H, L, ?], L2] {
+    def apply[A](l: ConsK[H, L, A]): L2[A] = l match {
+      case Inlk(h) => contains.build(h)
+      case Inrk(r) => next(r)
     }
   }
 

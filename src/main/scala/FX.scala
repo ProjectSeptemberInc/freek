@@ -32,30 +32,9 @@ trait FXNil extends FX {
   type Cop[t] = CNilK[t]
 }
 
-// Older models
-// sealed trait FXCons extends FX {
-//   type Head[_]
-//   type Tail[_] <: CoproductK[_]
-//   // type Cop[t] = ConsK[Head, Tail, t]
-// }
-// trait :|:[H[_], T <: FX] extends FXCons {
-//   type Head[t] = H[t]
-//   type Tail[t] = T#Cop[t]
-//   type Cop[t] = ConsK[H, T#Cop, t]
-// }
-// trait :||:[T1 <: FXCons, T2 <: FX] extends FXCons {
-//   // type Cop[t] = AppendK[T1#Cop, T2#Cop, t]
-// }
-// abstract class :||:[T1 <: FXCons, T2 <: FX](implicit val merge: MergeCopHK[T1#Tail, T2#Cop]) extends FXCons {
-//   type Head[t] = T1#Head[t]
-//   type Tail[t] = merge.Out[t]
-//   type Cop[t] = ConsK[T1#Head, merge.Out, t]
-// }
-
-
 trait ToCopK[F <: FX, Cop[_] <: CoproductK[_]]
 
-object ToCopK {
+object ToCopK extends LowerToCopK {
 
   def apply[F <: FX, Cop[_] <: CoproductK[_]](implicit toCopK: ToCopK[F, Cop]) = toCopK
 
@@ -65,12 +44,16 @@ object ToCopK {
     implicit next: ToCopK[T, C]
   ): ToCopK[:|:[H, T], ConsK[H, C, ?]] = new ToCopK[:|:[H, T], ConsK[H, C, ?]] {}
 
+}
+
+trait LowerToCopK {
+
   implicit def merge[T1 <: FX, T2 <: FX, C1[_] <: CoproductK[_], C2[_] <: CoproductK[_]](
     implicit
       toCopK1: ToCopK[T1, C1]
     , toCopK2: ToCopK[T2, C2]
-    // , merge: MergeCopHK.Aux[C1, C2, C]
   ): ToCopK[:||:[T1, T2], AppendK[C1, C2, ?]] = new ToCopK[:||:[T1, T2], AppendK[C1, C2, ?]] {}
+
 }
 
 trait SubFX[C[_] <: CoproductK[_], F <: FX] {
