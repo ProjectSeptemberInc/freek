@@ -9,13 +9,9 @@ class Interpreter[C[_] <: CoproductK[_], R[_]](
   val nat: C ~> R
 ) {
 
-  def :&:[F[_]](f: F ~> R): Interpreter[ConsK[F, C, ?], R] = new Interpreter(
-    new ~>[ConsK[F, C, ?], R] {
-      def apply[A](c: ConsK[F, C, A]): R[A] = c match {
-        case Inlk(fa) => f(fa)
-        case Inrk(t) => nat(t)
-        case _ => throw new RuntimeException("impossible case")
-      }
+  def :&:[F[_]](f: F ~> R)(implicit prep: PrependHK[F, C]): Interpreter[prep.Out, R] = new Interpreter(
+    new ~>[prep.Out, R] {
+      def apply[A](c: prep.Out[A]): R[A] = prep.nat(c, f, nat)
     }
   )
 
@@ -32,11 +28,11 @@ class Interpreter[C[_] <: CoproductK[_], R[_]](
 }
 
 object Interpreter {
-  def apply[F[_], R[_]](nat: F ~> R): Interpreter[ConsK[F, CNilK, ?], R] =
-    new Interpreter[ConsK[F, CNilK, ?], R](
-      new ~>[ConsK[F, CNilK, ?], R] {
-        def apply[A](c: ConsK[F, CNilK, A]): R[A] = c match {
-          case Inlk(fa) => nat(fa)
+  def apply[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] =
+    new Interpreter[In1[F, ?], R](
+      new ~>[In1[F, ?], R] {
+        def apply[A](c: In1[F, A]): R[A] = c match {
+          case In1(fa) => nat(fa)
           case _ => throw new RuntimeException("impossible case")
         }
       }

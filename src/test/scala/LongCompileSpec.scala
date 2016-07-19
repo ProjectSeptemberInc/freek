@@ -43,12 +43,13 @@ class LongCompileSpec extends FlatSpec with Matchers {
   case class Foo8[A](a: A)
   case class Foo9[A](a: A)
 
+
   "Freek" should "long compile" in {
 
     // type PRG1 = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: FXNil
     // type PRG2 = Foo5 :|: /*Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|:*/ FXNil
     // type PRG = PRG1 :||: PRG2
-    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: /*Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|:*/ FXNil
+    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: FXNil
 
     val prg = for {
       a <- Foo1(5).freek[PRG]
@@ -56,10 +57,10 @@ class LongCompileSpec extends FlatSpec with Matchers {
       a <- Foo3(a).freek[PRG]
       a <- Foo4(a).freek[PRG]
       a <- Foo5(a).freek[PRG]
-      // a <- Foo6(a).freek[PRG]
-      // a <- Foo7(a).freek[PRG]
-      // a <- Foo8(a).freek[PRG]
-      // a <- Foo9(a).freek[PRG]
+      a <- Foo6(a).freek[PRG]
+      a <- Foo7(a).freek[PRG]
+      a <- Foo8(a).freek[PRG]
+      a <- Foo9(a).freek[PRG]
     } yield (a)
 
     // object Foo1I extends (Foo1 ~> cats.Id) {
