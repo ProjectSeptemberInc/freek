@@ -15,43 +15,59 @@ package freek
   * type C2[t] = (F :||: C)#Cop[t] (gives [t => F[t] :+: G[t] :+: H[t] :+: CNilK[t])
   * ```
   */
-sealed trait FX/* {
+sealed trait FX {
   type Cop[_] <: CoproductK[_]
-}*/
+}
 
-trait :|:[H[_], T <: FX] extends FX /*{
+trait :|:[H[_], T <: FX] extends FX {
   type Cop[t] = ConsK[H, T#Cop, t]
-}*/
+}
 
 // Relying on AppendK that delays type unification later
-trait :||:[T1 <: FX, T2 <: FX] extends FX /*{
+trait :||:[T1 <: FX, T2 <: FX] extends FX {
   type Cop[t] = AppendK[T1#Cop, T2#Cop, t]
-}*/
+}
 
-trait FXNil extends FX /*{
+trait FXNil extends FX {
   type Cop[t] = CNilK[t]
-}*/
+}
 
 trait ToCopK[F <: FX] {
   type Cop[t] <: CoproductK[t]
+  type Out[_] <: CoproductK[_]
 }
 
 object ToCopK extends LowerToCopK {
 
   def apply[F <: FX](implicit toCopK: ToCopK[F]) = toCopK
 
-  type Aux[F <: FX, C[_] <: CoproductK[_]] = ToCopK[F] { type Cop[t] = C[t] }
+  type Aux[F <: FX, C[_] <: CoproductK[_], O[_] <: CoproductK[_]] = ToCopK[F] {
+    type Cop[t] = C[t]
+    type Out[t] = O[t]
+  }
 
-  implicit val fxnil: ToCopK.Aux[FXNil, CNilK] = new ToCopK[FXNil] { type Cop[t] = CNilK[t] }
+  implicit val fxnil: ToCopK.Aux[FXNil, CNilK, CNilK] = new ToCopK[FXNil] {
+    type Cop[t] = CNilK[t]
+    type Out[t] = CNilK[t]
+  }
 
-  implicit def one[H[_]]: ToCopK.Aux[:|:[H, FXNil], In1[H, ?]] =
-    new ToCopK[:|:[H, FXNil]] { type Cop[t] = In1[H, t] }
+  implicit def one[H[_]]: ToCopK.Aux[:|:[H, FXNil], In1[H, ?], ConsK[H, CNilK, ?]] =
+    new ToCopK[:|:[H, FXNil]] {
+      type Cop[t] = In1[H, t]
+      type Out[t] = ConsK[H, CNilK, t]
+    }
 
-  implicit def two[H[_], H2[_]]: ToCopK.Aux[:|:[H, :|:[H2, FXNil]], In2[H, H2, ?]] =
-    new ToCopK[:|:[H, :|:[H2, FXNil]]] { type Cop[t] = In2[H, H2, t] }
+  implicit def two[H[_], H2[_]]: ToCopK.Aux[:|:[H, :|:[H2, FXNil]], In2[H, H2, ?], ConsK[H, ConsK[H2, CNilK, ?], ?]] =
+    new ToCopK[:|:[H, :|:[H2, FXNil]]] {
+      type Cop[t] = In2[H, H2, t]
+      type Out[t] = ConsK[H, ConsK[H2, CNilK, ?], t]
+    }
 
-  implicit def three[H[_], H2[_], H3[_]]: ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, FXNil]]], In3[H, H2, H3, ?]] =
-    new ToCopK[:|:[H, :|:[H2, :|:[H3, FXNil]]]] { type Cop[t] = In3[H, H2, H3, t] }
+  implicit def three[H[_], H2[_], H3[_]]: ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, FXNil]]], In3[H, H2, H3, ?], ConsK[H, ConsK[H2, ConsK[H3, CNilK, ?], ?], ?]] =
+    new ToCopK[:|:[H, :|:[H2, :|:[H3, FXNil]]]] {
+      type Cop[t] = In3[H, H2, H3, t]
+      type Out[t] = ConsK[H, ConsK[H2, ConsK[H3, CNilK, ?], ?], t]
+    }
 
   // implicit def head[H[_], T <: FX, C[_] <: CoproductK[_]](
   //   implicit next: ToCopK[T, C]
@@ -60,36 +76,53 @@ object ToCopK extends LowerToCopK {
 
 trait LowerToCopK {
 
-  implicit def four[H[_], H2[_], H3[_], T <: FX, C[_] <: CoproductK[_]](
-    implicit next: ToCopK.Aux[T, C]
-  ): ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, T]]], AppendK[In3[H, H2, H3, ?], C, ?]] =
-    new ToCopK[:|:[H, :|:[H2, :|:[H3, T]]]] { type Cop[t] = AppendK[In3[H, H2, H3, ?], C, t] }
+  implicit def four[H[_], H2[_], H3[_], T <: FX, C[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+    implicit next: ToCopK.Aux[T, C, O]
+  ): ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, T]]], AppendK[In3[H, H2, H3, ?], C, ?], ConsK[H, ConsK[H2, ConsK[H3, O, ?], ?], ?]] =
+    new ToCopK[:|:[H, :|:[H2, :|:[H3, T]]]] {
+      type Cop[t] = AppendK[In3[H, H2, H3, ?], C, t]
+      type Out[t] = ConsK[H, ConsK[H2, ConsK[H3, O, ?], ?], t]
+    }
 
-  implicit def merge[T1 <: FX, T2 <: FX, C1[_] <: CoproductK[_], C2[_] <: CoproductK[_]](
+  implicit def consk[H[_], T <: FX, C[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+    implicit next: ToCopK.Aux[T, C, O]
+  ): ToCopK.Aux[:|:[H, T], ConsK[H, C, ?], ConsK[H, O, ?]] =
+    new ToCopK[:|:[H, T]] {
+      type Cop[t] = ConsK[H, C, t]
+      type Out[t] = ConsK[H, O, t]
+    }
+
+  implicit def merge[T1 <: FX, T2 <: FX, C1[_] <: CoproductK[_], O1[_] <: CoproductK[_], C2[_] <: CoproductK[_], O2[_] <: CoproductK[_], O3[_] <: CoproductK[_]](
     implicit
-      toCopK1: ToCopK.Aux[T1, C1]
-    , toCopK2: ToCopK.Aux[T2, C2]
-  ): ToCopK.Aux[:||:[T1, T2], AppendK[C1, C2, ?]] =
-    new ToCopK[:||:[T1, T2]] { type Cop[t] = AppendK[C1, C2, t] }
+      toCopK1: ToCopK.Aux[T1, C1, O1]
+    , toCopK2: ToCopK.Aux[T2, C2, O2]
+    , merge: MergeCopHK.Aux[O1, O2, O3]
+  ): ToCopK.Aux[:||:[T1, T2], AppendK[C1, C2, ?], O3] =
+    new ToCopK[:||:[T1, T2]] {
+      type Cop[t] = AppendK[C1, C2, t]
+      type Out[t] = O3[t]
+    }
 
 }
 
 trait SubFX[C[_] <: CoproductK[_], F <: FX] {
   type Cop[_] <: CoproductK[_]
+  type FC[_] <: CoproductK[_]
 
-  val sub: SubCop[C, Cop]
+  val sub: SubCop[C, FC]
 }
 
 object SubFX {
 
   def apply[C[_] <: CoproductK[_], F <: FX](implicit subfxfx: SubFX[C, F]) = subfxfx
 
-  implicit def subfx[C[_] <: CoproductK[_], F <: FX, FC[_] <: CoproductK[_]](
+  implicit def subfx[C[_] <: CoproductK[_], F <: FX, FC0[_] <: CoproductK[_], O[_] <: CoproductK[_]](
     implicit
-      toCopK: ToCopK.Aux[F, FC]
-    , sub0: SubCop[C, FC]
+      toCopK: ToCopK.Aux[F, FC0, O]
+    , sub0: SubCop[C, FC0]
   ) = new SubFX[C, F] {
-    type Cop[t] = FC[t]
+    type Cop[t] = O[t]
+    type FC[t] = FC0[t]
     val sub = sub0
   }
 

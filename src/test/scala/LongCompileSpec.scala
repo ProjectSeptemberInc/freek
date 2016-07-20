@@ -47,8 +47,10 @@ class LongCompileSpec extends FlatSpec with Matchers {
   "Freek" should "long compile" in {
 
     // type PRG1 = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: FXNil
-    // type PRG2 = Foo5 :|: /*Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|:*/ FXNil
-    // type PRG = PRG1 :||: PRG2
+    // type PRG2 = Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: FXNil
+    // type PRG3 = Foo1 :|: PRG1 :||: PRG2
+    // ToCopK[PRG3]
+
     type PRG = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: FXNil
 
     val prg = for {

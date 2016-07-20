@@ -5,6 +5,11 @@ import cats.free.Free
 
 /** a few implicit conversions */
 package object freek extends HK {
+  implicit def freeCast[F[_] <: CoproductK[_], F2[_] <: CoproductK[_], A](free: Free[F, A])(
+    implicit sub: SubCop[F, F2]
+  ): Free[F2, A] = free.mapSuspension(new (F ~> F2) {
+    def apply[A](fa: F[A]): F2[A] = sub(fa)
+  })
 
   case class toOnionT3[TC[_[_], _], F[_], GA, A](val tc: TC[F, GA])(
     implicit ga: HKK.Aux[GA, A]
@@ -84,7 +89,7 @@ package object freek extends HK {
     //   Freek.expand[ConsK[F, CNilK, ?], C#Cop, G[HA]](freek0)
 
     @inline def freek[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, G[HA]] =
-      Freek.expand[In1[F, ?], subfx.Cop, G[HA]](freek0)(subfx.sub)
+      Freek.expand[In1[F, ?], subfx.FC, G[HA]](freek0)(subfx.sub).asInstanceOf[Free[subfx.Cop, G[HA]]]
 
     @inline def upcast[T](implicit f: F[G[HA]] <:< T): T = fa
     
@@ -147,7 +152,7 @@ package object freek extends HK {
     //   Freek.expand[ConsK[F, CNilK, ?], C#Cop, A](freek0)
 
     @inline def freek[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, A] =
-      Freek.expand[In1[F, ?], subfx.Cop, A](freek0)(subfx.sub)
+      Freek.expand[In1[F, ?], subfx.FC, A](freek0)(subfx.sub).asInstanceOf[Free[subfx.Cop, A]]
 
     @inline def upcast[T](implicit f: F[A] <:< T): T = fa
     
@@ -165,7 +170,7 @@ package object freek extends HK {
 
   implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {
     @inline def expand[C <: FX](implicit subfx: SubFX[F, C]): Free[subfx.Cop, A] =
-      Freek.expand[F, subfx.Cop, A](free)(subfx.sub)
+      Freek.expand[F, subfx.FC, A](free)(subfx.sub).asInstanceOf[Free[subfx.Cop, A]]
 
     def interpret[F2[_] <: CoproductK[_], G[_]: Monad](i: Interpreter[F2, G])(
       implicit sub:SubCop[F, F2]
