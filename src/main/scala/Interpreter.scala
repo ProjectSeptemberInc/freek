@@ -9,9 +9,9 @@ class Interpreter[C[_] <: CoproductK[_], R[_]](
   val nat: C ~> R
 ) {
 
-  def :&:[F[_]](f: F ~> R)(implicit prep: PrependHK[F, C]): Interpreter[prep.Out, R] = new Interpreter(
-    new ~>[prep.Out, R] {
-      def apply[A](c: prep.Out[A]): R[A] = prep.nat(c, f, nat)
+  def :&:[F[_], O[_] <: CoproductK[_]](f: F ~> R)(implicit prep: PrependHK.Aux[F, C, O]): Interpreter[O, R] = new Interpreter(
+    new ~>[O, R] {
+      def apply[A](c: O[A]): R[A] = prep.nat(c, f, nat)
     }
   )
 
