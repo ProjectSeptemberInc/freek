@@ -7,14 +7,9 @@ import cats.data.Xor
   *
   * Using shapeless syntax, it represents a M[t] = F[t] :+: G[t] :+: H[t] :+: CNilk[t]
   */ 
-sealed trait CoproductK[A] extends Product with Serializable {
-  // type Cop[t] <: CoproductK[t]
-}
+sealed trait CoproductK[A] extends Product with Serializable
 
-// sealed trait CNilK[A] extends CoproductK[A]
-sealed trait CNilK[A] extends CoproductK[A] {
-  // type Cop[t] = CNilK[t]
-}
+sealed trait CNilK[A] extends CoproductK[A]
 
 // sealed trait ConsK[H[_], L[_] <: CoproductK[_], A] extends CoproductK[A] {
 //   type Cop[t] = ConsK[H, L, t]
@@ -22,21 +17,13 @@ sealed trait CNilK[A] extends CoproductK[A] {
 // final case class Inlk[H[_], T[_] <: CoproductK[_], A](head : H[A]) extends ConsK[H, T, A]
 // final case class Inrk[H[_], T[_] <: CoproductK[_], A](tail : T[A]) extends ConsK[H, T, A]
 
-final case class In1[H[_], A](head: H[A]) extends CoproductK[A] /*with ConsK[H, CNilK, A]*/ {
-  // override type Cop[t] = ConsK[H, CNilK, t]
-}
+final case class In1[H[_], A](head: H[A]) extends CoproductK[A]
 
-sealed trait In2[H1[_], H2[_], A] extends CoproductK[A] /*with ConsK[H1, ConsK[H2, CNilK, ?], A]*/ {
-  // override type Cop[t] = ConsK[H1, ConsK[H2, CNilK, ?], t]
-}
+sealed trait In2[H1[_], H2[_], A] extends CoproductK[A]
 final case class In2l[H1[_], H2[_], A](left: H1[A]) extends In2[H1, H2, A] 
-
 final case class In2r[H1[_], H2[_], A](right: H2[A]) extends In2[H1, H2, A]
 
-sealed trait In3[H1[_], H2[_], H3[_], A] extends CoproductK[A] /*with ConsK[H1, ConsK[H2, ConsK[H3, CNilK, ?], ?], A]*/ {
-  // override type Cop[t] = ConsK[H1, ConsK[H2, ConsK[H3, CNilK, ?], ?], t]
-}
-
+sealed trait In3[H1[_], H2[_], H3[_], A] extends CoproductK[A]
 final case class In3l[H1[_], H2[_], H3[_], A](left: H1[A]) extends In3[H1, H2, H3, A]
 final case class In3m[H1[_], H2[_], H3[_], A](middle: H2[A]) extends In3[H1, H2, H3, A]
 final case class In3r[H1[_], H2[_], H3[_], A](right: H3[A]) extends In3[H1, H2, H3, A]
@@ -45,7 +32,6 @@ final case class In3r[H1[_], H2[_], H3[_], A](right: H3[A]) extends In3[H1, H2, 
 sealed trait AppendK[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A] extends CoproductK[A]
 final case class Aplk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](left: L[A]) extends AppendK[L, R, A]
 final case class Aprk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](right: R[A]) extends AppendK[L, R, A]
-
 
 trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
   def extract[A](la: L[A]): Option[H[A]]
@@ -77,17 +63,6 @@ object ContainsHK extends LowerContainsHK {
       def build[A](ha: H1[A]): In2[H1, H2, A] = In2l(ha)
     }
 
-  implicit def in2r[H1[_], H2[_]]: ContainsHK[In2[H1, H2, ?], H2] =
-    new ContainsHK[In2[H1, H2, ?], H2] {
-
-      def extract[A](la: In2[H1, H2, A]): Option[H2[A]] = la match {
-        case In2l(l) => None
-        case In2r(r) => Some(r)
-      }
-
-      def build[A](ha: H2[A]): In2[H1, H2, A] = In2r(ha)
-    }
-
   implicit def in3l[H1[_], H2[_], H3[_]]: ContainsHK[In3[H1, H2, H3, ?], H1] =
     new ContainsHK[In3[H1, H2, H3, ?], H1] {
 
@@ -98,6 +73,21 @@ object ContainsHK extends LowerContainsHK {
       }
 
       def build[A](ha: H1[A]): In3[H1, H2, H3, A] = In3l(ha)
+    }
+
+}
+
+trait LowerContainsHK extends LowerContainsHK2 {
+
+  implicit def in2r[H1[_], H2[_]]: ContainsHK[In2[H1, H2, ?], H2] =
+    new ContainsHK[In2[H1, H2, ?], H2] {
+
+      def extract[A](la: In2[H1, H2, A]): Option[H2[A]] = la match {
+        case In2l(l) => None
+        case In2r(r) => Some(r)
+      }
+
+      def build[A](ha: H2[A]): In2[H1, H2, A] = In2r(ha)
     }
 
   implicit def in3m[H1[_], H2[_], H3[_]]: ContainsHK[In3[H1, H2, H3, ?], H2] =
@@ -112,6 +102,11 @@ object ContainsHK extends LowerContainsHK {
       def build[A](ha: H2[A]): In3[H1, H2, H3, A] = In3m(ha)
     }
 
+}
+
+
+trait LowerContainsHK2 extends LowerContainsHK3 {
+
   implicit def in3r[H1[_], H2[_], H3[_]]: ContainsHK[In3[H1, H2, H3, ?], H3] =
     new ContainsHK[In3[H1, H2, H3, ?], H3] {
 
@@ -124,16 +119,6 @@ object ContainsHK extends LowerContainsHK {
       def build[A](ha: H3[A]): In3[H1, H2, H3, A] = In3r(ha)
     }
 
-  // implicit def head[H[_], L[_] <: CoproductK[_]]: ContainsHK[ConsK[H, L, ?], H] =
-  //   new ContainsHK[ConsK[H, L, ?], H] {
-
-  //     def extract[A](la: ConsK[H, L, A]): Option[H[A]] = la match {
-  //       case Inlk(h) => Some(h)
-  //       case Inrk(_) => None
-  //     }
-
-  //     def build[A](ha: H[A]): ConsK[H, L, A] = Inlk(ha)
-  //   }
 
   implicit def appendLeft[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
     implicit containsLeft: ContainsHK[L1, H]
@@ -150,8 +135,7 @@ object ContainsHK extends LowerContainsHK {
 
 }
 
-
-trait LowerContainsHK {
+trait LowerContainsHK3 {
 
   implicit def appendRight[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
     implicit containsRight: ContainsHK[L2, H]
@@ -263,132 +247,9 @@ trait LowerSubCop2 {
 
 }
 
-trait CopIso[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
-  def to[A](l: L[A]): R[A]
-  def from[A](r: R[A]): L[A]
-}
+// 
 
-object CopIso extends CopIsoLower {
 
-  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copIso: CopIso[L, R]): CopIso[L, R] = copIso
-
-  implicit def in1[H[_]] = new CopIso[In1[H, ?], AppendK[In1[H, ?], CNilK, ?]] {
-    def to[A](l: In1[H, A]): AppendK[In1[H, ?], CNilK, A] = Aplk(l)
-    def from[A](r: AppendK[In1[H, ?], CNilK, A]): In1[H, A] = r match {
-      case Aplk(l) => l
-      case Aprk(_) => throw new RuntimeException("impossible case")
-    }
-  }
-
-  implicit def in2[H1[_], H2[_]] = new CopIso[In2[H1, H2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], ?]] {
-    def to[A](l: In2[H1, H2, A]): AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], A] = l match {
-      case In2l(l) => Aplk(In1(l))
-      case In2r(r) => Aprk(Aplk(In1(r)))
-    }
-    def from[A](r: AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], A]): In2[H1, H2, A] = r match {
-      case Aplk(In1(l)) => In2l(l)
-      case Aprk(Aplk(In1(r))) => In2r(r)
-      case _ => throw new RuntimeException("impossible case")
-    }
-  }
-
-  implicit def in3[H1[_], H2[_], H3[_]] = new CopIso[In3[H1, H2, H3, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], ?]] {
-    def to[A](l: In3[H1, H2, H3, A]): AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], A] = l match {
-      case In3l(l) => Aplk(In1(l))
-      case In3m(m) => Aprk(Aplk(In1(m)))
-      case In3r(r) => Aprk(Aprk(Aplk(In1(r))))
-    }
-    def from[A](r: AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], A]): In3[H1, H2, H3, A] = r match {
-      case Aplk(In1(l)) => In3l(l)
-      case Aprk(Aplk(In1(m))) => In3m(m)
-      case Aprk(Aprk(Aplk(In1(r)))) => In3r(r)
-      case _ => throw new RuntimeException("impossible case")
-    }
-  }
-
-}
-
-trait CopIsoLower {
-  implicit def rec[L[_] <: CoproductK[_], R[_] <: CoproductK[_], OL[_] <: CoproductK[_], OR[_] <: CoproductK[_], O[_] <: CoproductK[_]](
-    implicit
-      leftIso: CopIso[L, OL]
-    , rightIso: CopIso[R, OR]
-    , ap: CopAppend.Aux[OL, OR, O]
-  ) = new CopIso[AppendK[L, R, ?], O] {
-
-    def to[A](l: AppendK[L, R, A]): O[A] = l match {
-      case Aplk(l) => ap.left(leftIso.to(l))
-      case Aprk(r) => ap.right(rightIso.to(r))
-    }
-    def from[A](o: O[A]): AppendK[L, R, A] = ap.extract(o) match {
-      case Xor.Left(l) => Aplk(leftIso.from(l))
-      case Xor.Right(r) => Aprk(rightIso.from(r))
-    }
-  }
-}
-
-trait CopAppend[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
-  type Out[_] <: CoproductK[_]
-
-  def left[A](l: L[A]): Out[A]
-  def right[A](l: R[A]): Out[A]
-  def extract[A](o: Out[A]): Xor[L[A], R[A]]
-}
-
-object CopAppend extends CopAppendLower {
-
-  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copAppend: CopAppend[L, R]): CopAppend[L, R] = copAppend
-
-  type Aux[L[_] <: CoproductK[_], R[_] <: CoproductK[_], Out0[_] <: CoproductK[_]] = CopAppend[L, R] {
-    type Out[t] = Out0[t]
-  }
-
-  implicit def nil[H1[_], H2[_], R2[_] <: CoproductK[_]]: CopAppend.Aux[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], ?]] =
-    new CopAppend[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?]] {
-      type Out[t] = AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], t]
-
-      def left[A](l: AppendK[In1[H1, ?], CNilK, A]): Out[A] = l match {
-        case Aplk(in1) => Aplk(in1)
-        case Aprk(_) => throw new RuntimeException("impossible case")
-      }
-
-      def right[A](l: AppendK[In1[H2, ?], R2, A]): Out[A] = l match {
-        case Aplk(in2) => Aprk(Aplk(in2))
-        case Aprk(r2) => Aprk(Aprk(r2))
-      }
-
-      def extract[A](o: Out[A]): Xor[AppendK[In1[H1, ?], CNilK, A], AppendK[In1[H2, ?], R2, A]] = o match {
-        case Aplk(In1(h1)) => Xor.left(Aplk(In1(h1)))
-        case Aprk(Aplk(In1(h2))) => Xor.right(Aplk(In1(h2)))
-        case Aprk(Aprk(r2)) => Xor.right(Aprk(r2))
-        case _ => throw new RuntimeException("impossible case")
-      }
-    }
-}
-
-trait CopAppendLower {
-  implicit def rec[H1[_], R1[_] <: CoproductK[_], R2[_] <: CoproductK[_], O[_] <: CoproductK[_]](
-    implicit next: CopAppend.Aux[R1, R2, O]
-  ): CopAppend.Aux[AppendK[In1[H1, ?], R1, ?], R2, AppendK[In1[H1, ?], O, ?]] =
-    new CopAppend[AppendK[In1[H1, ?], R1, ?], R2] {
-      type Out[t] = AppendK[In1[H1, ?], O, t]
-
-      def left[A](l: AppendK[In1[H1, ?], R1, A]): Out[A] = l match {
-        case Aplk(in1) => Aplk(in1)
-        case Aprk(r1) => Aprk(next.left(r1))
-      }
-
-      def right[A](r2: R2[A]): Out[A] = Aprk(next.right(r2))
-
-       def extract[A](o: Out[A]): Xor[AppendK[In1[H1, ?], R1, A], R2[A]] = o match {
-        case Aplk(In1(h1)) => Xor.left(Aplk(In1(h1)))
-        case Aprk(o) => next.extract(o) match {
-          case Xor.Left(r1) => Xor.left(Aprk(r1))
-          case Xor.Right(r2) => Xor.right(r2)
-        }
-      }
-    }
-}
 
 trait PrependHK[H[_], L[_] <: CoproductK[_]] {
   type Out[_] <: CoproductK[_]
@@ -508,28 +369,136 @@ trait PrependHKLower {
       }
     }
 
-  // implicit def append[H[_], L[_] <: CoproductK[_], R[_] <: CoproductK[_], C[_] <: CoproductK[_]](
-  //   implicit prep: PrependHK.Aux[H, L, C]
-  // ): PrependHK.Aux[H, AppendK[L, R, ?], AppendK[C, R, ?]] =
-  //   new PrependHK[H, AppendK[L, R, ?]] {
-  //     type Out[t] = AppendK[C, R, t]
-
-  //     def apply[A](c: AppendK[L, R, A]): Out[A] = c match {
-  //       case Aplk(l) => Aplk(prep(l))
-  //       case Aprk(r) => Aprk(r)
-  //     }
-
-  //     def single[A](ha: H[A]): Out[A] = Aplk(prep.single(ha))
-
-  //     def nat[RR[_], A](out: AppendK[C, R, A], nat1: H ~> RR, nat2: AppendK[L, R, ?] ~> RR): RR[A] = out match {
-  //       case Aplk(l) => prep.nat(l, nat1, new (L ~> RR) {
-  //         def apply[A](fa: L[A]): RR[A] = nat2(Aplk(fa))
-  //       })
-  //       case Aprk(m) => nat2(Aprk(m))
-  //     }
-  //   }
 
 }
+
+
+// object CopAppend extends CopAppendLower {
+
+//   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copAppend: CopAppend[L, R]): CopAppend[L, R] = copAppend
+
+//   type Aux[L[_] <: CoproductK[_], R[_] <: CoproductK[_], Out0[_] <: CoproductK[_]] = CopAppend[L, R] {
+//     type Out[t] = Out0[t]
+//   }
+
+//   implicit def nil[H1[_], H2[_], R2[_] <: CoproductK[_]]: CopAppend.Aux[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], ?]] =
+//     new CopAppend[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?]] {
+//       type Out[t] = AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], t]
+
+//       def left[A](l: AppendK[In1[H1, ?], CNilK, A]): Out[A] = l match {
+//         case Aplk(in1) => Aplk(in1)
+//         case Aprk(_) => throw new RuntimeException("impossible case")
+//       }
+
+//       def right[A](l: AppendK[In1[H2, ?], R2, A]): Out[A] = l match {
+//         case Aplk(in2) => Aprk(Aplk(in2))
+//         case Aprk(r2) => Aprk(Aprk(r2))
+//       }
+
+//       def extract[A](o: Out[A]): Xor[AppendK[In1[H1, ?], CNilK, A], AppendK[In1[H2, ?], R2, A]] = o match {
+//         case Aplk(In1(h1)) => Xor.left(Aplk(In1(h1)))
+//         case Aprk(Aplk(In1(h2))) => Xor.right(Aplk(In1(h2)))
+//         case Aprk(Aprk(r2)) => Xor.right(Aprk(r2))
+//         case _ => throw new RuntimeException("impossible case")
+//       }
+//     }
+// }
+
+// trait CopAppendLower {
+//   implicit def rec[H1[_], R1[_] <: CoproductK[_], R2[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+//     implicit next: CopAppend.Aux[R1, R2, O]
+//   ): CopAppend.Aux[AppendK[In1[H1, ?], R1, ?], R2, AppendK[In1[H1, ?], O, ?]] =
+//     new CopAppend[AppendK[In1[H1, ?], R1, ?], R2] {
+//       type Out[t] = AppendK[In1[H1, ?], O, t]
+
+//       def left[A](l: AppendK[In1[H1, ?], R1, A]): Out[A] = l match {
+//         case Aplk(in1) => Aplk(in1)
+//         case Aprk(r1) => Aprk(next.left(r1))
+//       }
+
+//       def right[A](r2: R2[A]): Out[A] = Aprk(next.right(r2))
+
+//        def extract[A](o: Out[A]): Xor[AppendK[In1[H1, ?], R1, A], R2[A]] = o match {
+//         case Aplk(In1(h1)) => Xor.left(Aplk(In1(h1)))
+//         case Aprk(o) => next.extract(o) match {
+//           case Xor.Left(r1) => Xor.left(Aprk(r1))
+//           case Xor.Right(r2) => Xor.right(r2)
+//         }
+//       }
+//     }
+// }
+
+// trait CopIso[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
+//   def to[A](l: L[A]): R[A]
+//   def from[A](r: R[A]): L[A]
+// }
+
+// object CopIso extends CopIsoLower {
+
+//   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copIso: CopIso[L, R]): CopIso[L, R] = copIso
+
+//   implicit def in1[H[_]] = new CopIso[In1[H, ?], AppendK[In1[H, ?], CNilK, ?]] {
+//     def to[A](l: In1[H, A]): AppendK[In1[H, ?], CNilK, A] = Aplk(l)
+//     def from[A](r: AppendK[In1[H, ?], CNilK, A]): In1[H, A] = r match {
+//       case Aplk(l) => l
+//       case Aprk(_) => throw new RuntimeException("impossible case")
+//     }
+//   }
+
+//   implicit def in2[H1[_], H2[_]] = new CopIso[In2[H1, H2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], ?]] {
+//     def to[A](l: In2[H1, H2, A]): AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], A] = l match {
+//       case In2l(l) => Aplk(In1(l))
+//       case In2r(r) => Aprk(Aplk(In1(r)))
+//     }
+//     def from[A](r: AppendK[In1[H1, ?], AppendK[In1[H2, ?], CNilK, ?], A]): In2[H1, H2, A] = r match {
+//       case Aplk(In1(l)) => In2l(l)
+//       case Aprk(Aplk(In1(r))) => In2r(r)
+//       case _ => throw new RuntimeException("impossible case")
+//     }
+//   }
+
+//   implicit def in3[H1[_], H2[_], H3[_]] = new CopIso[In3[H1, H2, H3, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], ?]] {
+//     def to[A](l: In3[H1, H2, H3, A]): AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], A] = l match {
+//       case In3l(l) => Aplk(In1(l))
+//       case In3m(m) => Aprk(Aplk(In1(m)))
+//       case In3r(r) => Aprk(Aprk(Aplk(In1(r))))
+//     }
+//     def from[A](r: AppendK[In1[H1, ?], AppendK[In1[H2, ?], AppendK[In1[H3, ?], CNilK, ?], ?], A]): In3[H1, H2, H3, A] = r match {
+//       case Aplk(In1(l)) => In3l(l)
+//       case Aprk(Aplk(In1(m))) => In3m(m)
+//       case Aprk(Aprk(Aplk(In1(r)))) => In3r(r)
+//       case _ => throw new RuntimeException("impossible case")
+//     }
+//   }
+
+// }
+
+// trait CopIsoLower {
+//   implicit def rec[L[_] <: CoproductK[_], R[_] <: CoproductK[_], OL[_] <: CoproductK[_], OR[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+//     implicit
+//       leftIso: CopIso[L, OL]
+//     , rightIso: CopIso[R, OR]
+//     , ap: CopAppend.Aux[OL, OR, O]
+//   ) = new CopIso[AppendK[L, R, ?], O] {
+
+//     def to[A](l: AppendK[L, R, A]): O[A] = l match {
+//       case Aplk(l) => ap.left(leftIso.to(l))
+//       case Aprk(r) => ap.right(rightIso.to(r))
+//     }
+//     def from[A](o: O[A]): AppendK[L, R, A] = ap.extract(o) match {
+//       case Xor.Left(l) => Aplk(leftIso.from(l))
+//       case Xor.Right(r) => Aprk(rightIso.from(r))
+//     }
+//   }
+// }
+
+// trait CopAppend[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
+//   type Out[_] <: CoproductK[_]
+
+//   def left[A](l: L[A]): Out[A]
+//   def right[A](l: R[A]): Out[A]
+//   def extract[A](o: Out[A]): Xor[L[A], R[A]]
+// }
 
 // trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] {
 //   type Out[_] <: CoproductK[_]

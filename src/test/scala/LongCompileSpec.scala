@@ -54,38 +54,37 @@ class LongCompileSpec extends FlatSpec with Matchers {
   case class Foo20[A](a: A)
 
   "Freek" should "long compile" in {
-    // type PRG1 = Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: FXNil
-    // type PRG2 = Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: FXNil
-    // type PRG3 = Foo1 :|: PRG1 :||: PRG2
-    // ToCopK[PRG3]
+
     type PRG =
       Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: Foo10 :|: 
       Foo11 :|: Foo12 :|: Foo13 :|: Foo14 :|: Foo15 :|: Foo16 :|: Foo17 :|: Foo18 :|: Foo19 :|: Foo20 :|:
       FXNil
 
-    val prg = for {
-      a <- Foo1(5).freek2[PRG]
-      a <- Foo2(a).freek2[PRG]
-      a <- Foo3(a).freek2[PRG]
-      a <- Foo4(a).freek2[PRG]
-      a <- Foo5(a).freek2[PRG]
-      a <- Foo6(a).freek2[PRG]
-      a <- Foo7(a).freek2[PRG]
-      a <- Foo8(a).freek2[PRG]
-      a <- Foo9(a).freek2[PRG]
-      a <- Foo10(a).freek2[PRG]
-      a <- Foo11(a).freek2[PRG]
-      a <- Foo12(a).freek2[PRG]
-      a <- Foo13(a).freek2[PRG]
-      a <- Foo14(a).freek2[PRG]
-      a <- Foo15(a).freek2[PRG]
-      a <- Foo16(a).freek2[PRG]
-      a <- Foo17(a).freek2[PRG]
-      a <- Foo18(a).freek2[PRG]
-      a <- Foo19(a).freek2[PRG]
-      a <- Foo20(a).freek2[PRG]
-    } yield (a)
+    val PRG = Program[PRG]
 
+
+    val prg: Free[PRG.Cop, Int] = for {
+      a <- Foo1(5).freek[PRG]
+      a <- Foo2(a).freek[PRG]
+      a <- Foo3(a).freek[PRG]
+      a <- Foo4(a).freek[PRG]
+      a <- Foo5(a).freek[PRG]
+      a <- Foo6(a).freek[PRG]
+      a <- Foo7(a).freek[PRG]
+      a <- Foo8(a).freek[PRG]
+      a <- Foo9(a).freek[PRG]
+      a <- Foo10(a).freek[PRG]
+      a <- Foo11(a).freek[PRG]
+      a <- Foo12(a).freek[PRG]
+      a <- Foo13(a).freek[PRG]
+      a <- Foo14(a).freek[PRG]
+      a <- Foo15(a).freek[PRG]
+      a <- Foo16(a).freek[PRG]
+      a <- Foo17(a).freek[PRG]
+      a <- Foo18(a).freek[PRG]
+      a <- Foo19(a).freek[PRG]
+      a <- Foo20(a).freek[PRG]
+    } yield (a)
 
     object Foo1I extends (Foo1 ~> cats.Id) {
       def apply[A](a: Foo1[A]) = a match {
@@ -211,8 +210,7 @@ class LongCompileSpec extends FlatSpec with Matchers {
       Foo1I :&: Foo2I :&: Foo3I :&: Foo4I :&: Foo5I :&: Foo6I :&: Foo7I :&: Foo8I :&: Foo9I :&: Foo10I :&:
       Foo11I :&: Foo12I :&: Foo13I :&: Foo14I :&: Foo15I :&: Foo16I :&: Foo17I :&: Foo18I :&: Foo19I :&: Foo20I
 
-    val res = prg.free.compile(interpreter.nat)
+    val res = prg.interpret(interpreter)
     println(s"Res: $res")
-    
   }
 }

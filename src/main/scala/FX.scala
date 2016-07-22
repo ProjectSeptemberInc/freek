@@ -15,22 +15,21 @@ package freek
   * type C2[t] = (F :||: C)#Cop[t] (gives [t => F[t] :+: G[t] :+: H[t] :+: CNilK[t])
   * ```
   */
-sealed trait FX {
-  type Cop[_] <: CoproductK[_]
+sealed trait FX
+
+class :|:[H[_], T <: FX](implicit val toCop:ToCopK[H :|: T]) extends FX
+
+trait :||:[T1 <: FX, T2 <: FX] extends FX
+
+trait FXNil extends FX
+
+
+class Program[FX0 <: FX, C[_] <: CoproductK[_]] {
+  type Cop[t] = C[t]
 }
 
-trait :|:[H[_], T <: FX] extends FX {
-  // type Cop[t] = ConsK[H, T#Cop, t]
-  type Cop[t] = AppendK[In1[H, ?], T#Cop, t]
-}
-
-// Relying on AppendK that delays type unification later
-trait :||:[T1 <: FX, T2 <: FX] extends FX {
-  type Cop[t] = AppendK[T1#Cop, T2#Cop, t]
-}
-
-trait FXNil extends FX {
-  type Cop[t] = CNilK[t]
+object Program {
+  def apply[FX0 <: FX](implicit toCop:ToCopK[FX0]) = new Program[FX0, toCop.Cop] {}
 }
 
 trait ToCopK[F <: FX] {
@@ -64,9 +63,6 @@ object ToCopK extends LowerToCopK {
       type Cop[t] = In3[H, H2, H3, t]
     }
 
-  // implicit def head[H[_], T <: FX, C[_] <: CoproductK[_]](
-  //   implicit next: ToCopK[T, C]
-  // ): ToCopK[:|:[H, T], ConsK[H, C, ?]] = new ToCopK[:|:[H, T], ConsK[H, C, ?]] {}
 }
 
 trait LowerToCopK {
@@ -79,20 +75,6 @@ trait LowerToCopK {
     new ToCopK[:|:[H, T]] {
       type Cop[t] = O[t]
     }
-
-  // implicit def four[H[_], H2[_], H3[_], T <: FX, C[_] <: CoproductK[_]](
-  //   implicit next: ToCopK.Aux[T, C]
-  // ): ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, T]]], AppendK[In3[H, H2, H3, ?], C, ?]] =
-  //   new ToCopK[:|:[H, :|:[H2, :|:[H3, T]]]] {
-  //     type Cop[t] = AppendK[In3[H, H2, H3, ?], C, t]
-  //   }
-
-  // implicit def consk[H[_], T <: FX, C[_] <: CoproductK[_]](
-  //   implicit next: ToCopK.Aux[T, C]
-  // ): ToCopK.Aux[:|:[H, T], ConsK[H, C, ?]] =
-  //   new ToCopK[:|:[H, T]] {
-  //     type Cop[t] = ConsK[H, C, t]
-  //   }
 
   implicit def merge[T1 <: FX, T2 <: FX, C1[_] <: CoproductK[_], C2[_] <: CoproductK[_]](
     implicit
@@ -126,74 +108,3 @@ object SubFX {
 
 }
 
-
-/*
-trait SubFX[H[_], F <: FX] {
-  type Cop[_] <: CoproductK[_]
-
-  val sub: SubCop[ConsK[H, CNilK, ?], Cop]
-}
-
-object SubFX /*extends SubFXLow*/ {
-  
-  type Aux[H[_], F <: FX, Out0[_] <: CoproductK[_]] = SubFX[H, F] { type Cop[t] = Out0[t] }
-
-  def apply[H[_], F <: FX](implicit subfx: SubFX[H, F]) = subfx
-
-  implicit def subfx[H[_], F <: FX, FC[_] <: CoproductK[_]](
-    implicit
-      toCopK: ToCopK[F, FC]
-    , sub0: SubCop[ConsK[H, CNilK, ?], FC]
-  ): SubFX.Aux[H, F, FC] = new SubFX[H, F] {
-    type Cop[t] = FC[t]
-    val sub = sub0
-  }
-
-  /*implicit def subfx[H[_], F <: FX, C[_] <: CoproductK[_]](
-    implicit toCopK: ToCopK[F, C]
-  ): SubFX.Aux[H, :|:[H, F], ConsK[H, C, ?]] = new SubFX[H, :|:[H, F]] {
-    type Cop[t] = ConsK[H, C, t]
-    val sub = SubCop[ConsK[H, CNilK, ?], ConsK[H, C, ?]]
-  }
-
-  implicit def subfx1[H[_], K[_], F1 <: FX, F2 <: FX, Out[_] <: CoproductK[_]]
-  (
-    implicit
-      sub0: SubCop[ConsK[H, CNilK, ?], ConsK[K, F1#Cop, ?]]
-    , merge: MergeCopHK.Aux[ConsK[K, F1#Cop, ?], F2#Cop, Out]
-  ): SubFX.Aux[H, :||:[:|:[K, F1], F2], Out] = new SubFX[H, :||:[:|:[K, F1], F2]] {
-    type Cop[t] = Out[t]
-    val sub = new SubCop[ConsK[H, CNilK, ?], Cop] {
-      def apply[A](l: ConsK[H, CNilK, A]): Cop[A] = merge.fromLeft(sub0(l))
-    }
-  }
-
-  implicit def subfx2[H[_], K[_], F1 <: FX, F2 <: FX, Out[_] <: CoproductK[_]]
-  (
-    implicit
-      sub0: SubCop[ConsK[H, CNilK, ?], F2#Cop]
-    , merge: MergeCopHK.Aux[ConsK[K, F1#Cop, ?], F2#Cop, Out]
-  ): SubFX.Aux[H, :||:[:|:[K, F1], F2], Out] = new SubFX[H, :||:[:|:[K, F1], F2]] {
-    type Cop[t] = Out[t]
-    val sub = new SubCop[ConsK[H, CNilK, ?], Cop] {
-      def apply[A](l: ConsK[H, CNilK, A]): Cop[A] = merge.fromRight(sub0(l))
-    }
-  }*/
-}
-
-// trait SubFXLow {
-
-  // implicit def subfxNext[H[_], K[_], F <: FX]
-  // (
-  //   implicit next: SubFX[H, F]
-  // ): SubFX.Aux[H, :|:[K, F], ConsK[K, next.Cop, ?]] = new SubFX[H, :|:[K, F]] {
-  //   type Cop[t] = ConsK[K, next.Cop, t]
-  //   val sub = new SubCop[ConsK[H, CNilK, ?], ConsK[K, next.Cop, ?]] {
-  //     def apply[A](l: ConsK[H, CNilK, A]): ConsK[K, next.Cop, A] = Inrk(next.sub(l))
-  //   }
-  // }
-
-// }
-
-
-*/
