@@ -13,25 +13,26 @@ sealed trait ConsK[H[_], L[_] <: CoproductK[_], A] extends CoproductK[A]
 final case class Inlk[H[_], T[_] <: CoproductK[_], A](head : H[A]) extends ConsK[H, T, A]
 final case class Inrk[H[_], T[_] <: CoproductK[_], A](tail : T[A]) extends ConsK[H, T, A]
 
+// Used to lazily delays CoproductK flattening as long as possible
+sealed trait AppendK[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A] extends CoproductK[A]
+final case class Aplk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](left: L[A]) extends AppendK[L, R, A]
+final case class Aprk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](right: R[A]) extends AppendK[L, R, A]
+
+
 
 trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
-  type R[_] <: CoproductK[_]
-
   def extract[A](la: L[A]): Option[H[A]]
   def build[A](ha: H[A]): L[A]
 }
 
 
 object ContainsHK extends LowerContainsHK {
-
-  type Aux[L[_] <: CoproductK[_], H[_], R0[_] <: CoproductK[_]] = ContainsHK[L, H] { type R[t] = R0[t] }
   
   def apply[L[_] <: CoproductK[_], H[_]]
-    (implicit containsHK: ContainsHK[L, H]): Aux[L, H, containsHK.R] = containsHK
+    (implicit containsHK: ContainsHK[L, H])/*: Aux[L, H, containsHK.R]*/ = containsHK
 
-  implicit def head[H[_], L[_] <: CoproductK[_]]: ContainsHK.Aux[ConsK[H, L, ?], H, L] =
+  implicit def head[H[_], L[_] <: CoproductK[_]]: ContainsHK[ConsK[H, L, ?], H] =
     new ContainsHK[ConsK[H, L, ?], H] {
-      type R[t] = L[t]
 
       def extract[A](la: ConsK[H, L, A]): Option[H[A]] = la match {
         case Inlk(h) => Some(h)
@@ -41,16 +42,42 @@ object ContainsHK extends LowerContainsHK {
       def build[A](ha: H[A]): ConsK[H, L, A] = Inlk(ha)
     }
 
+  implicit def appendLeft[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
+    implicit containsLeft: ContainsHK[L1, H]
+  ): ContainsHK[AppendK[L1, L2, ?], H] =
+    new ContainsHK[AppendK[L1, L2, ?], H] {
+
+      def extract[A](la: AppendK[L1, L2, A]): Option[H[A]] = la match {
+        case Aplk(l) => containsLeft.extract(l)
+        case Aprk(_) => None
+      }
+
+      def build[A](ha: H[A]): AppendK[L1, L2, A] = Aplk(containsLeft.build(ha))
+    }
+
 }
 
 
 trait LowerContainsHK {
 
-  implicit def corec[H[_], K[_], L[_] <: CoproductK[_], RT[_] <: CoproductK[_]](
-    implicit next: ContainsHK.Aux[L, H, RT]
-  ): ContainsHK.Aux[ConsK[K, L, ?], H, ConsK[K, RT, ?]] =
+
+  implicit def appendRight[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
+    implicit containsRight: ContainsHK[L2, H]
+  ): ContainsHK[AppendK[L1, L2, ?], H] =
+    new ContainsHK[AppendK[L1, L2, ?], H] {
+
+      def extract[A](la: AppendK[L1, L2, A]): Option[H[A]] = la match {
+        case Aplk(_) => None
+        case Aprk(r) => containsRight.extract(r)
+      }
+
+      def build[A](ha: H[A]): AppendK[L1, L2, A] = Aprk(containsRight.build(ha))
+    }
+
+  implicit def corec[H[_], K[_], L[_] <: CoproductK[_]](
+    implicit next: ContainsHK[L, H]
+  ): ContainsHK[ConsK[K, L, ?], H] =
     new ContainsHK[ConsK[K, L, ?], H] {
-      type R[t] = ConsK[K, RT, t]
 
       def extract[A](la: ConsK[K, L, A]): Option[H[A]] = la match {
         case Inlk(h) => None
@@ -94,7 +121,7 @@ trait LowerMergeOneRightHK extends LowerMergeOneRightHK2 {
 
   implicit def contains[H[_], T[_] <: CoproductK[_]]
     (implicit
-        contains: ContainsHK[T, H]
+      contains: ContainsHK[T, H]
     ): MergeOneRightHK.Aux[T, H, T] =
       new MergeOneRightHK[T, H] {
         type Out[t] = T[t]
@@ -168,7 +195,48 @@ trait LowerMergeCopHK {
 }
 
 
-trait ContainsHKLub[L[_] <: CoproductK[_], H[_]] extends Serializable {
+trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
+  def apply[A](l: L[A]): L2[A]
+}
+
+object SubCop {
+
+  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
+    (implicit subCop: SubCop[L, R]): SubCop[L, R] = subCop
+
+  implicit def single[H[_], L[_] <: CoproductK[_]](
+    implicit contains: ContainsHK[L, H]
+  ) = new SubCop[ConsK[H, CNilK, ?], L] {
+    def apply[A](l: ConsK[H, CNilK, A]): L[A] = l match {
+      case Inlk(h) => contains.build(h)
+      case Inrk(_) => throw new RuntimeException("impossible case")
+    }
+  }
+
+  implicit def corec[H[_], L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+    implicit contains: ContainsHK[L2, H], next: SubCop[L, L2]
+  ) = new SubCop[ConsK[H, L, ?], L2] {
+    def apply[A](l: ConsK[H, L, A]): L2[A] = l match {
+      case Inlk(h) => contains.build(h)
+      case Inrk(r) => next(r)
+    }
+  }
+
+  implicit def appendk[H[_], L[_] <: CoproductK[_], R[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+    implicit subLeft: SubCop[L, L2], subRight: SubCop[R, L2]
+  ) = new SubCop[AppendK[L, R, ?], L2] {
+    def apply[A](la: AppendK[L, R, A]): L2[A] = la match {
+      case Aplk(l) => subLeft(l)
+      case Aprk(r) => subRight(r)
+    }
+  }
+
+}
+
+
+
+
+/*trait ContainsHKLub[L[_] <: CoproductK[_], H[_]] extends Serializable {
   type R[_] <: CoproductK[_]
 
   type Lub[_]
@@ -220,36 +288,7 @@ trait LowerContainsHKLub {
 
       def build[A](ha: H[A]): ConsK[K, L, A] = Inrk(next.build(ha))
     }
-}
+}*/
 
 
-
-trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
-  def apply[A](l: L[A]): L2[A]
-}
-
-object SubCop {
-
-  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
-    (implicit subCop: SubCop[L, R]): SubCop[L, R] = subCop
-
-  implicit def single[H[_], L[_] <: CoproductK[_]](
-    implicit contains: ContainsHK[L, H]
-  ) = new SubCop[ConsK[H, CNilK, ?], L] {
-    def apply[A](l: ConsK[H, CNilK, A]): L[A] = l match {
-      case Inlk(h) => contains.build(h)
-      case Inrk(_) => throw new RuntimeException("impossible case")
-    }
-  }
-
-  implicit def corec[H[_], L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
-    implicit contains: ContainsHK[L2, H], next: SubCop[L, L2]
-  ) = new SubCop[ConsK[H, L, ?], L2] {
-    def apply[A](l: ConsK[H, L, A]): L2[A] = l match {
-      case Inlk(h) => contains.build(h)
-      case Inrk(r) => next(r)
-    }
-  }
-
-}
 
