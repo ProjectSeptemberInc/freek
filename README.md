@@ -12,6 +12,14 @@
 ## Current Version
 
 <br/>
+### v0.5.0 (still kind-of experimentation):
+
+- introduced new model for CoproductK to improve compile-time globally (from O(n) to O(log2(n)))
+- introduced `Program[F <: FX]` to help scalac infer the output CoproductK when using the new optimized model
+- result type of a program based on `freek[PRG]` is no more `PRG#Cop` but `PRG.Cop` based on new `Program[PRG]`
+- optimized implicit order
+
+<br/>
 ### v0.4.3:
 
 - introduced `CoproductK.AppendK` to make it robust to combine programs containing sub-programs
@@ -114,14 +122,14 @@ To represent the DSL summing them all, Freek provides you with the following not
 
 ```scala
 type PRG = Log :|: KVS :|: File :|: FXNil
+object PRG = Program[PRG]
 ```
 
 Please note:
 
 - `FXNil` is required at the end of the coproduct
 - Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types...
-
-> in version <0.4.0', `#Cop[A]` was required to build the real hidden Sum/Coproduct type combining all DSL but after a remark from Daniel Spiewak, it has appeared to be useless
+- `object PRG = Program[PRG]` is the way to instantiate an object that represents your `PRG` type. It might seem artificial and actually it is completely: it is just required to convince scalac that it can infer the right coproduct in output and will be used later.
 
 <br/>
 <br/>
@@ -141,7 +149,7 @@ This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 type PRG = Log :|: KVS :|: File :|: FXNil
 
 // Here the type is shown for doc but you can omit it, Scala can infer things
-def program(id: String): Free[PRG#Cop, File] = 
+def program(id: String): Free[PRG.Cop, File] = 
   for {
     _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
     name  <- KVS.Get(id).freek[PRG]
@@ -153,6 +161,7 @@ def program(id: String): Free[PRG#Cop, File] =
 - Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
 - Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
 - The whole for-comprehension describes a program
+- The result type is `PRG.Cop` (and no more `PRG#Cop` as in previous version of freek): this is the main evolution in version 0.5.0 for developers required to help scalac to infer the right output coproductK using the latest optimized version of `CoproductK`.
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
@@ -231,7 +240,7 @@ Remark that:
 <br/>
 #### Execute your program using `interpret`
 
-`program` is just a `Free[PRG#Cop, A]`, right?
+`program` is just a `Free[PRG.Cop, A]`, right?
 
 So you could use simply `foldMap/compile` with your `interpreter.nat`.
 
@@ -264,10 +273,11 @@ object DBService {
   import DB._
 
   type PRG = Log.DSL :|: DB.DSL :|: FXNil
+  val PRG = Program[PRG]
 
   /** the program */
   // Here the type is indicated for doc but you can omit it, Scala can infer things
-  def findById(id: String): Free[PRG#Cop, Entity] =
+  def findById(id: String): Free[PRG.Cop, Entity] =
     for {
       _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
       res  <- FindById(id).freek[PRG]
@@ -284,9 +294,10 @@ To combine an existing combination of DSL into a new program, use the operator `
 ```scala
 
   type PRG = Log :|: KVS :|: File :|: DBService.PRG
+  val PRG = Program[PRG]
 
   // Here the type is indicated for doc but you can omit it, Scala can infer things
-  def program2(id: String): Free[PRG#Cop, File] = 
+  def program2(id: String): Free[PRG.Cop, File] = 
   for {
     _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
     name  <- KVS.Get(id).freek[PRG]
@@ -422,16 +433,16 @@ for {
 So, in the for-comprehension, we need to unify types on every line:
 
 ```scala
-Free[PRG#Cop, Option[A]]
+Free[PRG.Cop, Option[A]]
 // and
-Free[PRG#Cop, Xor[String, A]]
+Free[PRG.Cop, Xor[String, A]]
 
 // into
-Free[PRG#Cop, Xor[String, Option[A]]]
+Free[PRG.Cop, Xor[String, Option[A]]]
 
 // which is
 type O = Xor[String, ?] :&: Option :&: Bulb
-Free[PRG#Cop, O#Build]
+Free[PRG.Cop, O#Build]
 ```
 
 As you can expect, that's not enough, you need something more to do what we want.
@@ -458,7 +469,7 @@ type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 // Here the type is indicated for doc but you can omit it, Scala can infer things
-val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+val prg: OnionT[Free, PRG.Cop, O, Int] = for {
   i     <- Foo1("5").freek[PRG].onionT[O]
   i2    <- Foo2(i).freek[PRG].onionT[O]
   _     <- Log.info("toto " + i).freek[PRG].onionT[O]
@@ -497,7 +508,7 @@ type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 // Here the type is indicated for doc but you can omit it, Scala can infer things
-val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+val prg: OnionT[Free, PRG.Cop, O, Int] = for {
   i     <- Foo1("5").freeko[PRG, O]
   i2    <- Foo2(i).freeko[PRG, O]
   _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -531,6 +542,8 @@ case class Delete(no: String) extends Repo[Xor[String, Unit]]
 // Repository local program
 object Repo {
   type PRG = Repo :|: Log :|: FXNil
+  val PRG = Program[PRG]
+
   type O = Xor[String, ?] :&: Bulb
 
   // here you can define a local program re-usable in other programs
@@ -556,6 +569,7 @@ sealed trait Bar[A]
 // Bar can use Repo sub-program too
 object Bar {
   type PRG = Bar :|: Log.DSL :|: Repo.PRG
+  val PRG = Program[PRG]
 
   def subBar(...): Free[PRG#Cop, ...] = ...
 }
@@ -571,6 +585,7 @@ type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
 // Combine all programs using :||:
 type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
+val PRG = Program[PRG]
 
 // Here the type is indicated for doc but you can omit it
 val prg: OnionT[Free, PRG#Cop, O, Int] = for {
