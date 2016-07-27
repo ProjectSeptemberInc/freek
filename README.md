@@ -16,7 +16,7 @@
 
 - introduced new model for CoproductK to improve compile-time globally (from O(n) to O(log2(n)))
 - introduced `Program[F <: FX]` to help scalac infer the output CoproductK when using the new optimized model
-- result type of a program based on `freek[PRG]` is no more `PRG#Cop` but `PRG.Cop` based on new `Program[PRG]`
+- result type of a program based on `freek[PRG]` is no more `PRG.Cop` but `PRG.Cop` based on new `Program[PRG]`
 - optimized implicit order
 
 <br/>
@@ -38,7 +38,7 @@
 <br/>
 ### v0.4.0:
 
-- replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil)#Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
+- replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil).Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
 - introduced OnionT manipulations `.dropRight`, `.prepend`
 
 <br/>
@@ -158,10 +158,10 @@ def program(id: String): Free[PRG.Cop, File] =
   } yield (file)
 ```
 
-- Every line is lifted by `.free[PRG]` to `Free[PRG#Cop, A]`: `PRG#Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
-- Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG#Cop`.
+- Every line is lifted by `.free[PRG]` to `Free[PRG.Cop, A]`: `PRG.Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG.Cop`.
 - The whole for-comprehension describes a program
-- The result type is `PRG.Cop` (and no more `PRG#Cop` as in previous version of freek): this is the main evolution in version 0.5.0 for developers required to help scalac to infer the right output coproductK using the latest optimized version of `CoproductK`.
+- The result type is `PRG.Cop` (and no more `PRG.Cop` as in previous version of freek): this is the main evolution in version 0.5.0 for developers required to help scalac to infer the right output coproductK using the latest optimized version of `CoproductK`.
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
@@ -484,7 +484,7 @@ Remark that `.oniontT[O]` is used in all cases to lift to `OnionT[Free, PRG, O, 
 <br/>
 #### Execute an OnionT with `.value`
 
-`prg` has type `OnionT[Free, PRG#Cop, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
+`prg` has type `OnionT[Free, PRG.Cop, O, A]` but you want to execute it as a Free Monad, not this weird OnionT-stuff.
 
 It's as simple as you would do with Monad Transformers: access the underlying Free with `.value`
 
@@ -560,7 +560,7 @@ sealed trait Foo[A]
 object Foo {
   type PRG = Foo :|: Log.DSL :|: Repo.PRG
 
-  def subFoo(...): Free[PRG#Cop, ...] = ...
+  def subFoo(...): Free[PRG.Cop, ...] = ...
 }
 
 sealed trait Bar[A]
@@ -571,7 +571,7 @@ object Bar {
   type PRG = Bar :|: Log.DSL :|: Repo.PRG
   val PRG = Program[PRG]
 
-  def subBar(...): Free[PRG#Cop, ...] = ...
+  def subBar(...): Free[PRG.Cop, ...] = ...
 }
 ```
 
@@ -588,7 +588,7 @@ type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
 val PRG = Program[PRG]
 
 // Here the type is indicated for doc but you can omit it
-val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+val prg: OnionT[Free, PRG.Cop, O, Int] = for {
   ...   <- Foo.subFoo(...).freeko[PRG, O]
   ...   <- Bar.subBar(...).freeko[PRG, O]
   _     <- Repo.update(.).freeko[PRG, O]
