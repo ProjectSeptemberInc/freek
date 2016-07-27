@@ -78,13 +78,10 @@ package object freek extends HK {
 
   /** Will deconstruct G[HA] using HKK & Lifter2 if HA is not simply */
   implicit class ToFreek4[F[_], G[_], HA, A](val fa: F[G[HA]]) extends AnyVal {
-    @inline def freek0: Free[ConsK[F, CNilK, ?], G[HA]] = Freek(fa)
+    @inline def freek0: Free[In1[F, ?], G[HA]] = Freek(fa)
 
-    // @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, G[HA]] =
-    //   Freek.expand[ConsK[F, CNilK, ?], C#Cop, G[HA]](freek0)
-
-    @inline def freek[C <: FX](implicit subfx: SubFX[ConsK[F, CNilK, ?], C]): Free[subfx.Cop, G[HA]] =
-      Freek.expand[ConsK[F, CNilK, ?], subfx.Cop, G[HA]](freek0)(subfx.sub)
+    @inline def freek[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, G[HA]] =
+      Freek.expand[In1[F, ?], subfx.Cop, G[HA]](freek0)(subfx.sub) //.asInstanceOf[Free[subfx.Cop, G[HA]]]
 
     @inline def upcast[T](implicit f: F[G[HA]] <:< T): T = fa
     
@@ -92,7 +89,7 @@ package object freek extends HK {
       implicit 
         ga: HKK.Aux[G[HA], A]
       // , sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
-      , subfx: SubFX[ConsK[F, CNilK, ?], C]
+      , subfx: SubFX[In1[F, ?], C]
       , lifter2: Lifter2.Aux[G[HA], S, A]
       , pointer: Pointer[S]
       , mapper: Mapper[S]
@@ -101,53 +98,11 @@ package object freek extends HK {
     ): OnionT[Free, subfx.Cop, S, A] = toOnionT3(freek[C]).onionT[S]
   }
 
-/*
-  implicit class ToFreek3[F[_], G[_], H[_], A](val fa: F[G[H[A]]]) extends AnyVal {
-    @inline def freek0: Free[ConsK[F, CNilK, ?], G[H[A]]] = Freek(fa)
-
-    @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, G[H[A]]] =
-      Freek.expand[ConsK[F, CNilK, ?], C#Cop, G[H[A]]](freek0)
-
-    @inline def upcast[T](implicit f: F[G[H[A]]] <:< T): T = fa
-    
-    @inline def freeko[C <: FX, S <: Onion](
-      implicit 
-        sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
-      , lifter: Lifter[λ[t => G[H[t]]], S]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ) = toOnionT2(freek[C]).onionT[S]
-  }
-
-  implicit class ToFreek2[F[_], G[_], A](val fa: F[G[A]]) extends AnyVal {
-    @inline def freek0: Free[ConsK[F, CNilK, ?], G[A]] = Freek(fa)
-
-    @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, G[A]] =
-      Freek.expand[ConsK[F, CNilK, ?], C#Cop, G[A]](freek0)
-
-    @inline def upcast[T](implicit f: F[G[A]] <:< T): T = fa
-    
-    @inline def freeko[C <: FX, S <: Onion](
-      implicit 
-        sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
-      , lifter: Lifter[G, S]
-      , pointer: Pointer[S]
-      , mapper: Mapper[S]
-      , binder: Binder[S]
-      , traverser: Traverser[S]
-    ) = toOnionT(freek[C]).onionT[S]
-  }
-*/
   implicit class ToFreek[F[_], A](val fa: F[A]) extends AnyVal {
-    @inline def freek0: Free[ConsK[F, CNilK, ?], A] = Freek(fa)
+    @inline def freek0: Free[In1[F, ?], A] = Freek(fa)
 
-    // @inline def freek[C <: FX](implicit sub: SubCop[ConsK[F, CNilK, ?], C#Cop]): Free[C#Cop, A] =
-    //   Freek.expand[ConsK[F, CNilK, ?], C#Cop, A](freek0)
-
-    @inline def freek[C <: FX](implicit subfx: SubFX[ConsK[F, CNilK, ?], C]): Free[subfx.Cop, A] =
-      Freek.expand[ConsK[F, CNilK, ?], subfx.Cop, A](freek0)(subfx.sub)
+    @inline def freek[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, A] =
+      Freek.expand[In1[F, ?], subfx.Cop, A](freek0)(subfx.sub) //.asInstanceOf[Free[subfx.Cop, A]]
 
     @inline def upcast[T](implicit f: F[A] <:< T): T = fa
     
@@ -155,7 +110,7 @@ package object freek extends HK {
     @inline def freeko[C <: FX, S <: Onion](
       implicit 
         // sub: SubCop[ConsK[F, CNilK, ?], C#Cop]
-        subfx: SubFX[ConsK[F, CNilK, ?], C]
+        subfx: SubFX[In1[F, ?], C]
       , pointer: Pointer[S]
       , mapper: Mapper[S]
       , binder: Binder[S]
@@ -165,7 +120,7 @@ package object freek extends HK {
 
   implicit class FreeExtend[F[_] <: CoproductK[_], A](val free: Free[F, A]) extends AnyVal {
     @inline def expand[C <: FX](implicit subfx: SubFX[F, C]): Free[subfx.Cop, A] =
-      Freek.expand[F, subfx.Cop, A](free)(subfx.sub)
+      Freek.expand[F, subfx.Cop, A](free)(subfx.sub) //.asInstanceOf[Free[subfx.Cop, A]]
 
     def interpret[F2[_] <: CoproductK[_], G[_]: Monad](i: Interpreter[F2, G])(
       implicit sub:SubCop[F, F2]
@@ -174,14 +129,15 @@ package object freek extends HK {
     })
   }
 
+
   implicit class ToFreeOps[F[_], A](val free: Free[F, A]) extends AnyVal {   
-    @inline def expand[C <: FX](implicit subfx: SubFX[ConsK[F, CNilK, ?], C]): Free[subfx.Cop, A] =
-    free.mapSuspension(new (F ~> ConsK[F, CNilK, ?]) {
-      def apply[A](fa: F[A]): ConsK[F, CNilK, A] = Inlk(fa)
+    @inline def expand[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, A] =
+    free.mapSuspension(new (F ~> In1[F, ?]) {
+      def apply[A](fa: F[A]): In1[F, A] = In1(fa)
     }).expand[C]
   }
 
-  implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[ConsK[F, CNilK, ?], R] = Interpreter(nat)
+  implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
 
   implicit class toOnionT4[C[_]<: CoproductK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) extends AnyVal {
 

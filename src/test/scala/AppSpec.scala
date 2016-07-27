@@ -157,9 +157,10 @@ class AppSpec extends FlatSpec with Matchers {
       // FXNil corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
       type PRG = Log.DSL :|: DB.DSL :|: FXNil
+      val PRG = Program[PRG]
 
       /** the program */
-      def findById(id: String): Free[PRG#Cop, Xor[DBError, Entity]] =
+      def findById(id: String): Free[PRG.Cop, Xor[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
           res  <- FindById(id).freek[PRG]
@@ -171,11 +172,12 @@ class AppSpec extends FlatSpec with Matchers {
       import Http._
 
       /** Combining DSL in a type alias */
-      type PRG = Log.DSL  :|: HttpInteract :|: HttpHandle :|: DBService.PRG
+      type PRG = Log.DSL :|: HttpInteract :|: HttpHandle :|: DBService.PRG
+      val PRG = Program[PRG]
 
       // Handle action
       // :@@: combines a F[_] with an existing higher-kinded coproduct
-      def handle(req: HttpReq): Free[PRG#Cop, HttpResp] = req.url match {
+      def handle(req: HttpReq): Free[PRG.Cop, HttpResp] = req.url match {
         case "/foo" =>
           for {
             _     <-  Log.debug("/foo").freek[PRG]
@@ -195,7 +197,7 @@ class AppSpec extends FlatSpec with Matchers {
       // server program
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
-      def serve(): Free[PRG#Cop, Xor[RecvError, SendStatus]] =
+      def serve() : Free[PRG.Cop, Xor[RecvError, SendStatus]] =
         for {
           recv  <-  HttpInteract.receive().freek[PRG]
           _     <-  Log.info("HttpReceived Request:"+recv).freek[PRG]
@@ -214,6 +216,7 @@ class AppSpec extends FlatSpec with Matchers {
         } yield (res)
 
     }
+
 
     //////////////////////////////////////////////////////////////////////////
     // Interpreters as simple TransNat
@@ -270,6 +273,7 @@ class AppSpec extends FlatSpec with Matchers {
     // execute final program as a simple free with combined interpreter composed with a trampoline
     HttpService.serve().interpret(interpreter andThen Trampolined).run
     println(HttpInteraction.i)
+
   }
 
 
@@ -285,6 +289,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case object Bar3 extends Foo[Unit]
 
     type PRG = Foo :|: Log.DSL :|: FXNil
+    val PRG = Program[PRG]
 
     val prg = for {
       i     <- Bar("5").freek[PRG].liftT[Option].liftF[Xor[String, ?]]
@@ -335,7 +340,8 @@ class AppSpec extends FlatSpec with Matchers {
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
-    type PRG = Foo :|: Log.DSL  :|: PRG2
+    type PRG = Foo :|: Log.DSL :|: PRG2
+    val PRG = Program[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -396,6 +402,7 @@ class AppSpec extends FlatSpec with Matchers {
     type O = List :&: Xor[String, ?] :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
+    val PRG = Program[PRG]
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionP[O]
@@ -459,6 +466,7 @@ class AppSpec extends FlatSpec with Matchers {
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
+    val PRG = Program[PRG]
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
@@ -530,6 +538,7 @@ class AppSpec extends FlatSpec with Matchers {
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: KVS[String, Int, ?] :|: PRG2
+    val PRG = Program[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -594,8 +603,9 @@ class AppSpec extends FlatSpec with Matchers {
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
+    val PRG = Program[PRG]
 
-    val f: OnionT[Free, PRG#Cop, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
+    val f: OnionT[Free, PRG.Cop, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
       Foo1("5")
       .freek[PRG]
       .onionT[Xor[String, ?] :&: Option :&: Bulb]
@@ -625,8 +635,9 @@ class AppSpec extends FlatSpec with Matchers {
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: PRG2
+    val PRG = Program[PRG]
 
-    val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+    val prg: OnionT[Free, PRG.Cop, O, Int] = for {
       i     <- Foo1("5").freeko[PRG, O]
       i2    <- Foo2(i).freeko[PRG, O]
       _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -723,8 +734,9 @@ class AppSpec extends FlatSpec with Matchers {
       type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
       type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
+      val PRG = Program[PRG]
 
-      val prg: OnionT[Free, PRG#Cop, O, Int] = for {
+      val prg: OnionT[Free, PRG.Cop, O, Int] = for {
         i     <- Foo1("5").freeko[PRG, O]
         i2    <- Foo2(i).freeko[PRG, O]
         _     <- Log.info("toto " + i).freeko[PRG, O]
@@ -767,26 +779,9 @@ class AppSpec extends FlatSpec with Matchers {
 
       val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: repo2Future
     }
-
     val r = Await.result(Prg.prg.value.interpret(Prg.interpreters), 10.seconds)
     println("result:"+r)
   }
+
 }
 
-
-// SubFX[Bar, Bar.PRG :||: Repo.PRG]
-// SubFX.subfxNext[Bar, Foo, Log.DSL :|: Bar.PRG, ConsK[Log.DSL, ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?], ?]]
-// ToCopK.head[Bar, Log.DSL :|: FXNil, ConsK[Log.DSL, CNilK, ?]]
-// implicitly[ToCopK[Bar.PRG, ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?]]]
-// ToCopK[Repo.PRG, ConsK[Repo, CNilK, ?]]
-// val l: ToCopK[Bar.PRG :||: Repo.PRG, ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]] = ToCopK.merge[
-//   Bar.PRG, Repo.PRG
-// , ConsK[Bar, ConsK[Log.DSL, CNilK, ?], ?]
-// , ConsK[Repo, CNilK, ?]
-// , ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]
-// ]
-// ToCopK[Bar.PRG :||: Repo.PRG, ConsK[Bar, ConsK[Log.DSL, ConsK[Repo, CNilK, ?], ?], ?]]
-// SubFX.subfx[Foo, Log.DSL :|: Bar.PRG]
-// SubFX.subfx[Foo, Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
-// SubFX[Foo, Foo :|: Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
-// SubFX[Bar, Foo :|: Log.DSL :|: (Bar.PRG :||: Repo.PRG)]
