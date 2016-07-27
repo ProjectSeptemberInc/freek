@@ -149,6 +149,7 @@ This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 
 ```scala
 type PRG = Log :|: KVS :|: File :|: FXNil
+val PRG = Program[PRG]
 
 // Here the type is shown for doc but you can omit it, Scala can infer things
 def program(id: String): Free[PRG.Cop, File] = 
