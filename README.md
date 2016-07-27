@@ -11,6 +11,8 @@
 <br/>
 ## Current Version
 
+> All versions are published to bintray https://bintray.com/projectseptemberinc/
+
 <br/>
 ### v0.5.0 (still kind-of experimentation):
 
@@ -69,7 +71,7 @@ scalaVersion := "2.11.8"
 resolvers += Resolver.bintrayRepo("projectseptember", "maven")
 
 libraryDependencies ++= Seq(
-  "com.projectseptember"            %% "freek"                        % "0.4.1"
+  "com.projectseptember"            %% "freek"                        % "0.5.0"
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
 , "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
 )
