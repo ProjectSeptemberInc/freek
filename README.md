@@ -124,14 +124,14 @@ To represent the DSL summing them all, Freek provides you with the following not
 
 ```scala
 type PRG = Log :|: KVS :|: File :|: FXNil
-object PRG = Program[PRG]
+val PRG = Program[PRG]
 ```
 
 Please note:
 
 - `FXNil` is required at the end of the coproduct
 - Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types...
-- `object PRG = Program[PRG]` is the way to instantiate an object that represents your `PRG` type. It might seem artificial and actually it is completely: it is just required to convince scalac that it can infer the right coproduct in output and will be used later.
+- `val PRG = Program[PRG]` is the way to instantiate an object that represents your `PRG` type. It might seem artificial and actually it is completely: it is just required to convince scalac that it can infer the right coproduct in output and will be used later.
 
 <br/>
 <br/>
