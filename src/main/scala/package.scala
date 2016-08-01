@@ -129,6 +129,14 @@ package object freek extends HK {
     })
   }
 
+
+  implicit class ToFreeOps[F[_], A](val free: Free[F, A]) extends AnyVal {   
+    @inline def expand[C <: FX](implicit subfx: SubFX[In1[F, ?], C]): Free[subfx.Cop, A] =
+    free.mapSuspension(new (F ~> In1[F, ?]) {
+      def apply[A](fa: F[A]): In1[F, A] = In1(fa)
+    }).expand[C]
+  }
+
   implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
 
   implicit class toOnionT4[C[_]<: CoproductK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) extends AnyVal {
