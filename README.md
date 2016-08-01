@@ -68,7 +68,7 @@ Freek is just a few helpers & tricks to make it straightforward to manipulate Fr
 
 scalaVersion := "2.11.8"
 
-resolvers += Resolver.bintrayRepo("projectseptember", "maven")
+resolvers += Resolver.bintrayRepo("projectseptemberinc", "maven")
 
 libraryDependencies ++= Seq(
   "com.projectseptember"            %% "freek"                        % "0.5.0"
