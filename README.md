@@ -610,7 +610,7 @@ To make the difference between `:|:` and `:||:`, please remind the following:
 
 Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
 
-You can do that using `.dropRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
+You can do that using `.peelRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
 
 For example, you could do the following:
 
