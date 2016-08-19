@@ -783,5 +783,31 @@ class AppSpec extends FlatSpec with Matchers {
     println("result:"+r)
   }
 
+
+  "freek" should "special cases" in {
+    sealed trait Foo[A]
+    final case class Foo1(s: String) extends Foo[List[String]]
+
+    sealed trait Bar[A]
+    final case class Bar1(s: String) extends Bar[Option[String]]
+
+    sealed trait KVS[K, V, E]
+    case class Get[K, V](key: K) extends KVS[K, V, Option[V]]
+    case class Put[K, V](key: K, value: V) extends KVS[K, V, Unit]
+
+    type KVSA[A] = KVS[String, Int, A]
+    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: FXNil
+    val PRG = Program[PRG]
+    type O = Option :&: Bulb
+
+    val f1 = for {
+      _ <- Bar1("bar1").freek[PRG].onionT[O]
+      _ <- Foo1("foo1").freek[PRG].onionP[O]
+    } yield (())
+
+    val f2: Free[PRG.Cop, Option[Int]] = for {
+      i <- Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
+    } yield (i)
+  }
 }
 

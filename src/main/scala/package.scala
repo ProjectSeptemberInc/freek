@@ -148,5 +148,6 @@ package object freek extends HK {
     ): OnionT[Free, subfxfx.Cop, O2, A] = {
       OnionT(onion.value.expand[F]).expand[O2]
     }
+
   }
 }
