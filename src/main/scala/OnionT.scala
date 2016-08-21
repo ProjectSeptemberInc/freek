@@ -5,7 +5,7 @@ import cats.{Applicative, Functor, FlatMap, Monad, Traverse, Eq}
 
 
 /** The OnionT transformer to manipulate monadic stack of results */
-case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) extends Product with Serializable {
+case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Layers[A]]) extends Product with Serializable {
 
   def map[B](f: A => B)(
     implicit
@@ -21,7 +21,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , traverser: Traverser[S]
   ): OnionT[TC, F, S, B] =
     OnionT(
-      tcMonad.flatMap(value){ sba: S#Build[A] =>
+      tcMonad.flatMap(value){ sba: S#Layers[A] =>
         val subsbb = traverser.traverse(sba){ a => f(a).value }
         tcMonad.map(subsbb) { sbb => binder.bind(sbb){ sb => sb } }
       }
@@ -33,7 +33,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , dr: PeelRight[S]
   ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
     OnionT[TC, F, dr.OutS, dr.Out[A]](
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         dr.peelRight(sba)
       }
     )
@@ -44,7 +44,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , ul: Wrap[H, S]
   ): OnionT[TC, F, ul.Out, A] =
     OnionT[TC, F, ul.Out, A](
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         ul.wrap(sba)
       }
     )
@@ -55,7 +55,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , expander: Expander[S, S2]
   ): OnionT[TC, F, S2, A] =
     OnionT(
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         expander.expand(sba)
       }
     )

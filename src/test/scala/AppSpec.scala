@@ -152,14 +152,14 @@ class AppSpec extends FlatSpec with Matchers {
       import DB._
 
       // APP DEFINITION
-      // combine DSL in a higher-kinded coproduct
-      // Log.DSL :@: DB.DSL :@: FXNil builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
-      // FXNil corresponds to a higher-kinded CNil or no-effect combinator
+      // DSL.Make DSL in a higher-kinded coproduct
+      // Log.DSL :@: DB.DSL :@: NoDSL builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
+      // NoDSL corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
-      type PRG = Log.DSL :|: DB.DSL :|: FXNil
-      val PRG = Program[PRG]
+      type PRG = Log.DSL :|: DB.DSL :|: NoDSL
+      val PRG = DSL.Make[PRG]
 
-      /** the program */
+      /** the DSL.Make */
       def findById(id: String): Free[PRG.Cop, Xor[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
@@ -173,10 +173,10 @@ class AppSpec extends FlatSpec with Matchers {
 
       /** Combining DSL in a type alias */
       type PRG = Log.DSL :|: HttpInteract :|: HttpHandle :|: DBService.PRG
-      val PRG = Program[PRG]
+      val PRG = DSL.Make[PRG]
 
       // Handle action
-      // :@@: combines a F[_] with an existing higher-kinded coproduct
+      // :@@: DSL.Makes a F[_] with an existing higher-kinded coproduct
       def handle(req: HttpReq): Free[PRG.Cop, HttpResp] = req.url match {
         case "/foo" =>
           for {
@@ -194,7 +194,7 @@ class AppSpec extends FlatSpec with Matchers {
         case _ => HttpHandle.result(HttpResp(status = InternalServerError)).freek[PRG]
       }
 
-      // server program
+      // server DSL.Make
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
       def serve() : Free[PRG.Cop, Xor[RecvError, SendStatus]] =
@@ -260,17 +260,17 @@ class AppSpec extends FlatSpec with Matchers {
       }
     }
 
-    /** let's combine interpreters into a big interpreter
+    /** let's DSL.Make interpreters into a big interpreter
       * (F ~> R) :+: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
     val interpreter = HttpInteraction :&: Logger :&: HttpHandler :&: DBManager
 
-    /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
+    /** as we use a recursive DSL.Make, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
       def apply[A](a: cats.Id[A]) = Trampoline.done(a)
     }
 
-    // execute final program as a simple free with combined interpreter composed with a trampoline
+    // execute final DSL.Make as a simple free with DSL.Maked interpreter composed with a trampoline
     HttpService.serve().interpret(interpreter andThen Trampolined).run
     println(HttpInteraction.i)
 
@@ -288,8 +288,8 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
     final case object Bar3 extends Foo[Unit]
 
-    type PRG = Foo :|: Log.DSL :|: FXNil
-    val PRG = Program[PRG]
+    type PRG = Foo :|: Log.DSL :|: NoDSL
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Bar("5").freek[PRG].liftT[Option].liftF[Xor[String, ?]]
@@ -336,12 +336,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -397,12 +397,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionP[O]
@@ -461,12 +461,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
@@ -533,12 +533,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: KVS[String, Int, ?] :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -598,12 +598,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val f: OnionT[Free, PRG.Cop, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
       Foo1("5")
@@ -630,12 +630,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NoDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg: OnionT[Free, PRG.Cop, O, Int] = for {
       i     <- Foo1("5").freeko[PRG, O]
@@ -675,7 +675,7 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "allow declaring local programs" in {
+  "freek" should "allow declaring local DSL.Makes" in {
     
     trait RepositoryLayer {
       sealed trait Account
@@ -688,7 +688,7 @@ class AppSpec extends FlatSpec with Matchers {
       case class Delete(no: String) extends Repo[Xor[String, Unit]]
 
       object Repo {
-        type PRG = Repo :|: FXNil
+        type PRG = Repo :|: NoDSL
         type O = Xor[String, ?] :&: Bulb
       }
 
@@ -734,7 +734,7 @@ class AppSpec extends FlatSpec with Matchers {
       type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
       type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
-      val PRG = Program[PRG]
+      val PRG = DSL.Make[PRG]
 
       val prg: OnionT[Free, PRG.Cop, O, Int] = for {
         i     <- Foo1("5").freeko[PRG, O]
@@ -796,8 +796,8 @@ class AppSpec extends FlatSpec with Matchers {
     case class Put[K, V](key: K, value: V) extends KVS[K, V, Unit]
 
     type KVSA[A] = KVS[String, Int, A]
-    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: FXNil
-    val PRG = Program[PRG]
+    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: NoDSL
+    val PRG = DSL.Make[PRG]
     type O = Option :&: Bulb
 
     val f1 = for {
@@ -808,6 +808,8 @@ class AppSpec extends FlatSpec with Matchers {
     val f2: Free[PRG.Cop, Option[Int]] = for {
       i <- Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
     } yield (i)
+
+    val f3: Free[PRG.Cop, Option[Int]] = Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
   }
 }
 

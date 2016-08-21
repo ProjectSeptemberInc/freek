@@ -7,33 +7,33 @@ import cats.data.Xor
   *
   * Using shapeless syntax, it represents a M[t] = F[t] :+: G[t] :+: H[t] :+: CNilk[t]
   */ 
-sealed trait CoproductK[A] extends Product with Serializable
+sealed trait CopK[A] extends Product with Serializable
 
-sealed trait CNilK[A] extends CoproductK[A]
+sealed trait CNilK[A] extends CopK[A]
 
-// sealed trait ConsK[H[_], L[_] <: CoproductK[_], A] extends CoproductK[A] {
+// sealed trait ConsK[H[_], L[_] <: CopK[_], A] extends CopK[A] {
 //   type Cop[t] = ConsK[H, L, t]
 // }
-// final case class Inlk[H[_], T[_] <: CoproductK[_], A](head : H[A]) extends ConsK[H, T, A]
-// final case class Inrk[H[_], T[_] <: CoproductK[_], A](tail : T[A]) extends ConsK[H, T, A]
+// final case class Inlk[H[_], T[_] <: CopK[_], A](head : H[A]) extends ConsK[H, T, A]
+// final case class Inrk[H[_], T[_] <: CopK[_], A](tail : T[A]) extends ConsK[H, T, A]
 
-final case class In1[H[_], A](head: H[A]) extends CoproductK[A]
+final case class In1[H[_], A](head: H[A]) extends CopK[A]
 
-sealed trait In2[H1[_], H2[_], A] extends CoproductK[A]
+sealed trait In2[H1[_], H2[_], A] extends CopK[A]
 final case class In2l[H1[_], H2[_], A](left: H1[A]) extends In2[H1, H2, A] 
 final case class In2r[H1[_], H2[_], A](right: H2[A]) extends In2[H1, H2, A]
 
-sealed trait In3[H1[_], H2[_], H3[_], A] extends CoproductK[A]
+sealed trait In3[H1[_], H2[_], H3[_], A] extends CopK[A]
 final case class In3l[H1[_], H2[_], H3[_], A](left: H1[A]) extends In3[H1, H2, H3, A]
 final case class In3m[H1[_], H2[_], H3[_], A](middle: H2[A]) extends In3[H1, H2, H3, A]
 final case class In3r[H1[_], H2[_], H3[_], A](right: H3[A]) extends In3[H1, H2, H3, A]
 
-// Used to lazily delays CoproductK flattening as long as possible
-sealed trait AppendK[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A] extends CoproductK[A]
-final case class Aplk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](left: L[A]) extends AppendK[L, R, A]
-final case class Aprk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], A](right: R[A]) extends AppendK[L, R, A]
+// Used to lazily delays CopK flattening as long as possible
+sealed trait AppendK[L[_] <: CopK[_], R[_] <: CopK[_], A] extends CopK[A]
+final case class Aplk[L[_] <: CopK[_], R[_] <: CopK[_], A](left: L[A]) extends AppendK[L, R, A]
+final case class Aprk[L[_] <: CopK[_], R[_] <: CopK[_], A](right: R[A]) extends AppendK[L, R, A]
 
-trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
+trait ContainsHK[L[_] <: CopK[_], H[_]] extends Serializable {
   def extract[A](la: L[A]): Option[H[A]]
   def build[A](ha: H[A]): L[A]
 }
@@ -41,7 +41,7 @@ trait ContainsHK[L[_] <: CoproductK[_], H[_]] extends Serializable {
 
 object ContainsHK extends LowerContainsHK {
   
-  def apply[L[_] <: CoproductK[_], H[_]]
+  def apply[L[_] <: CopK[_], H[_]]
     (implicit containsHK: ContainsHK[L, H])/*: Aux[L, H, containsHK.R]*/ = containsHK
 
   implicit def in1[H[_]]: ContainsHK[In1[H, ?], H] =
@@ -120,7 +120,7 @@ trait LowerContainsHK2 extends LowerContainsHK3 {
     }
 
 
-  implicit def appendLeft[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
+  implicit def appendLeft[L1[_] <: CopK[_], L2[_] <: CopK[_], H[_]](
     implicit containsLeft: ContainsHK[L1, H]
   ): ContainsHK[AppendK[L1, L2, ?], H] =
     new ContainsHK[AppendK[L1, L2, ?], H] {
@@ -137,7 +137,7 @@ trait LowerContainsHK2 extends LowerContainsHK3 {
 
 trait LowerContainsHK3 {
 
-  implicit def appendRight[L1[_] <: CoproductK[_], L2[_] <: CoproductK[_], H[_]](
+  implicit def appendRight[L1[_] <: CopK[_], L2[_] <: CopK[_], H[_]](
     implicit containsRight: ContainsHK[L2, H]
   ): ContainsHK[AppendK[L1, L2, ?], H] =
     new ContainsHK[AppendK[L1, L2, ?], H] {
@@ -150,7 +150,7 @@ trait LowerContainsHK3 {
       def build[A](ha: H[A]): AppendK[L1, L2, A] = Aprk(containsRight.build(ha))
     }
 
-  // implicit def corec[H[_], K[_], L[_] <: CoproductK[_]](
+  // implicit def corec[H[_], K[_], L[_] <: CopK[_]](
   //   implicit next: ContainsHK[L, H]
   // ): ContainsHK[ConsK[K, L, ?], H] =
   //   new ContainsHK[ConsK[K, L, ?], H] {
@@ -167,22 +167,22 @@ trait LowerContainsHK3 {
 
 
 
-trait SubCop[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]] {
+trait SubCop[L[_] <: CopK[_], L2[_] <: CopK[_]] {
   def apply[A](l: L[A]): L2[A]
 }
 
 object SubCop extends LowerSubCop {
 
-  def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
+  def apply[L[_] <: CopK[_], R[_] <: CopK[_]]
     (implicit subCop: SubCop[L, R]): SubCop[L, R] = subCop
 
-  implicit def in1[H[_], L[_] <: CoproductK[_]](
+  implicit def in1[H[_], L[_] <: CopK[_]](
     implicit contains: ContainsHK[L, H]
   ) = new SubCop[In1[H, ?], L] {
     def apply[A](l: In1[H, A]): L[A] = contains.build(l.head)
   }
 
-  implicit def in2[H1[_], H2[_], L[_] <: CoproductK[_]](
+  implicit def in2[H1[_], H2[_], L[_] <: CopK[_]](
     implicit contains1: ContainsHK[L, H1], contains2: ContainsHK[L, H2]
   ) = new SubCop[In2[H1, H2, ?], L] {
     def apply[A](l: In2[H1, H2, A]): L[A] = l match {
@@ -191,7 +191,7 @@ object SubCop extends LowerSubCop {
     }
   }
 
-  implicit def in3[H1[_], H2[_], H3[_], L[_] <: CoproductK[_]](
+  implicit def in3[H1[_], H2[_], H3[_], L[_] <: CopK[_]](
     implicit contains1: ContainsHK[L, H1], contains2: ContainsHK[L, H2], contains3: ContainsHK[L, H3]
   ) = new SubCop[In3[H1, H2, H3, ?], L] {
     def apply[A](l: In3[H1, H2, H3, A]): L[A] = l match {
@@ -205,7 +205,7 @@ object SubCop extends LowerSubCop {
 
 trait LowerSubCop extends LowerSubCop2 {
 
-  // implicit def single[H[_], L[_] <: CoproductK[_]](
+  // implicit def single[H[_], L[_] <: CopK[_]](
   //   implicit contains: ContainsHK[L, H]
   // ) = new SubCop[ConsK[H, CNilK, ?], L] {
   //   def apply[A](l: ConsK[H, CNilK, A]): L[A] = l match {
@@ -214,7 +214,7 @@ trait LowerSubCop extends LowerSubCop2 {
   //   }
   // }
 
-  implicit def appendkNil[L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+  implicit def appendkNil[L[_] <: CopK[_], L2[_] <: CopK[_]](
     implicit subLeft: SubCop[L, L2]
   ) = new SubCop[AppendK[L, CNilK, ?], L2] {
     def apply[A](la: AppendK[L, CNilK, A]): L2[A] = la match {
@@ -227,7 +227,7 @@ trait LowerSubCop extends LowerSubCop2 {
 
 trait LowerSubCop2 {
 
-  implicit def appendk[L[_] <: CoproductK[_], R[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+  implicit def appendk[L[_] <: CopK[_], R[_] <: CopK[_], L2[_] <: CopK[_]](
     implicit subLeft: SubCop[L, L2], subRight: SubCop[R, L2]
   ) = new SubCop[AppendK[L, R, ?], L2] {
     def apply[A](la: AppendK[L, R, A]): L2[A] = la match {
@@ -236,7 +236,7 @@ trait LowerSubCop2 {
     }
   }
 
-  // implicit def corec[H[_], L[_] <: CoproductK[_], L2[_] <: CoproductK[_]](
+  // implicit def corec[H[_], L[_] <: CopK[_], L2[_] <: CopK[_]](
   //   implicit contains: ContainsHK[L2, H], next: SubCop[L, L2]
   // ) = new SubCop[ConsK[H, L, ?], L2] {
   //   def apply[A](l: ConsK[H, L, A]): L2[A] = l match {
@@ -251,8 +251,8 @@ trait LowerSubCop2 {
 
 
 
-trait PrependHK[H[_], L[_] <: CoproductK[_]] {
-  type Out[_] <: CoproductK[_]
+trait PrependHK[H[_], L[_] <: CopK[_]] {
+  type Out[_] <: CopK[_]
 
   def apply[A](ha: L[A]): Out[A]
   def single[A](ha: H[A]): Out[A]
@@ -262,10 +262,10 @@ trait PrependHK[H[_], L[_] <: CoproductK[_]] {
 
 object PrependHK extends PrependHKLower {
 
-  def apply[H[_], L[_] <: CoproductK[_]]
+  def apply[H[_], L[_] <: CopK[_]]
     (implicit prep: PrependHK[H, L]): Aux[H, L, prep.Out] = prep
 
-  type Aux[H[_], L[_] <: CoproductK[_], Out0[_] <: CoproductK[_]] = PrependHK[H, L] { type Out[t] = Out0[t] }
+  type Aux[H[_], L[_] <: CopK[_], Out0[_] <: CopK[_]] = PrependHK[H, L] { type Out[t] = Out0[t] }
 
   implicit def in1[H1[_], H2[_]]: Aux[H1, In1[H2, ?], In2[H1, H2, ?]] =
     new PrependHK[H1, In1[H2, ?]] {
@@ -312,7 +312,7 @@ object PrependHK extends PrependHKLower {
       }
     }
 
-  implicit def append1[H1[_], H2[_], R[_] <: CoproductK[_], C[_] <: CoproductK[_]]: Aux[H1, AppendK[In1[H2, ?], R, ?], AppendK[In2[H1, H2, ?], R, ?]] =
+  implicit def append1[H1[_], H2[_], R[_] <: CopK[_], C[_] <: CopK[_]]: Aux[H1, AppendK[In1[H2, ?], R, ?], AppendK[In2[H1, H2, ?], R, ?]] =
     new PrependHK[H1, AppendK[In1[H2, ?], R, ?]] {
       type Out[t] = AppendK[In2[H1, H2, ?], R, t]
 
@@ -330,7 +330,7 @@ object PrependHK extends PrependHKLower {
       }
     }
 
-  implicit def append2[H1[_], H2[_], H3[_], R[_] <: CoproductK[_], C[_] <: CoproductK[_]]: Aux[H1, AppendK[In2[H2, H3, ?], R, ?], AppendK[In3[H1, H2, H3, ?], R, ?]] =
+  implicit def append2[H1[_], H2[_], H3[_], R[_] <: CopK[_], C[_] <: CopK[_]]: Aux[H1, AppendK[In2[H2, H3, ?], R, ?], AppendK[In3[H1, H2, H3, ?], R, ?]] =
     new PrependHK[H1, AppendK[In2[H2, H3, ?], R, ?]] {
       type Out[t] = AppendK[In3[H1, H2, H3, ?], R, t]
 
@@ -355,7 +355,7 @@ object PrependHK extends PrependHKLower {
 trait PrependHKLower {
 
 
-  implicit def append[H[_], L[_] <: CoproductK[_], R[_] <: CoproductK[_], C[_] <: CoproductK[_]]: PrependHK.Aux[H, AppendK[L, R, ?], AppendK[In1[H, ?], AppendK[L, R, ?], ?]] =
+  implicit def append[H[_], L[_] <: CopK[_], R[_] <: CopK[_], C[_] <: CopK[_]]: PrependHK.Aux[H, AppendK[L, R, ?], AppendK[In1[H, ?], AppendK[L, R, ?], ?]] =
     new PrependHK[H, AppendK[L, R, ?]] {
       type Out[t] = AppendK[In1[H, ?], AppendK[L, R, ?], t]
 
@@ -375,13 +375,13 @@ trait PrependHKLower {
 
 // object CopAppend extends CopAppendLower {
 
-//   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copAppend: CopAppend[L, R]): CopAppend[L, R] = copAppend
+//   def apply[L[_] <: CopK[_], R[_] <: CopK[_]](implicit copAppend: CopAppend[L, R]): CopAppend[L, R] = copAppend
 
-//   type Aux[L[_] <: CoproductK[_], R[_] <: CoproductK[_], Out0[_] <: CoproductK[_]] = CopAppend[L, R] {
+//   type Aux[L[_] <: CopK[_], R[_] <: CopK[_], Out0[_] <: CopK[_]] = CopAppend[L, R] {
 //     type Out[t] = Out0[t]
 //   }
 
-//   implicit def nil[H1[_], H2[_], R2[_] <: CoproductK[_]]: CopAppend.Aux[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], ?]] =
+//   implicit def nil[H1[_], H2[_], R2[_] <: CopK[_]]: CopAppend.Aux[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?], AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], ?]] =
 //     new CopAppend[AppendK[In1[H1, ?], CNilK, ?], AppendK[In1[H2, ?], R2, ?]] {
 //       type Out[t] = AppendK[In1[H1, ?], AppendK[In1[H2, ?], R2, ?], t]
 
@@ -405,7 +405,7 @@ trait PrependHKLower {
 // }
 
 // trait CopAppendLower {
-//   implicit def rec[H1[_], R1[_] <: CoproductK[_], R2[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+//   implicit def rec[H1[_], R1[_] <: CopK[_], R2[_] <: CopK[_], O[_] <: CopK[_]](
 //     implicit next: CopAppend.Aux[R1, R2, O]
 //   ): CopAppend.Aux[AppendK[In1[H1, ?], R1, ?], R2, AppendK[In1[H1, ?], O, ?]] =
 //     new CopAppend[AppendK[In1[H1, ?], R1, ?], R2] {
@@ -428,14 +428,14 @@ trait PrependHKLower {
 //     }
 // }
 
-// trait CopIso[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
+// trait CopIso[L[_] <: CopK[_], R[_] <: CopK[_]] {
 //   def to[A](l: L[A]): R[A]
 //   def from[A](r: R[A]): L[A]
 // }
 
 // object CopIso extends CopIsoLower {
 
-//   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]](implicit copIso: CopIso[L, R]): CopIso[L, R] = copIso
+//   def apply[L[_] <: CopK[_], R[_] <: CopK[_]](implicit copIso: CopIso[L, R]): CopIso[L, R] = copIso
 
 //   implicit def in1[H[_]] = new CopIso[In1[H, ?], AppendK[In1[H, ?], CNilK, ?]] {
 //     def to[A](l: In1[H, A]): AppendK[In1[H, ?], CNilK, A] = Aplk(l)
@@ -474,7 +474,7 @@ trait PrependHKLower {
 // }
 
 // trait CopIsoLower {
-//   implicit def rec[L[_] <: CoproductK[_], R[_] <: CoproductK[_], OL[_] <: CoproductK[_], OR[_] <: CoproductK[_], O[_] <: CoproductK[_]](
+//   implicit def rec[L[_] <: CopK[_], R[_] <: CopK[_], OL[_] <: CopK[_], OR[_] <: CopK[_], O[_] <: CopK[_]](
 //     implicit
 //       leftIso: CopIso[L, OL]
 //     , rightIso: CopIso[R, OR]
@@ -492,16 +492,16 @@ trait PrependHKLower {
 //   }
 // }
 
-// trait CopAppend[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
-//   type Out[_] <: CoproductK[_]
+// trait CopAppend[L[_] <: CopK[_], R[_] <: CopK[_]] {
+//   type Out[_] <: CopK[_]
 
 //   def left[A](l: L[A]): Out[A]
 //   def right[A](l: R[A]): Out[A]
 //   def extract[A](o: Out[A]): Xor[L[A], R[A]]
 // }
 
-// trait MergeOneRightHK[L[_] <: CoproductK[_], H[_]] {
-//   type Out[_] <: CoproductK[_]
+// trait MergeOneRightHK[L[_] <: CopK[_], H[_]] {
+//   type Out[_] <: CopK[_]
 
 //   def apply[A](ha: L[A]): Out[A]
 //   def single[A](ha: H[A]): Out[A]
@@ -509,10 +509,10 @@ trait PrependHKLower {
 
 // object MergeOneRightHK extends LowerMergeOneRightHK {
 
-//   def apply[L[_] <: CoproductK[_], H[_]]
+//   def apply[L[_] <: CopK[_], H[_]]
 //     (implicit mergeOneRightHK: MergeOneRightHK[L, H]): Aux[L, H, mergeOneRightHK.Out] = mergeOneRightHK
 
-//   type Aux[L[_] <: CoproductK[_], H[_], Out0[_] <: CoproductK[_]] = MergeOneRightHK[L, H] { type Out[t] = Out0[t] }
+//   type Aux[L[_] <: CopK[_], H[_], Out0[_] <: CopK[_]] = MergeOneRightHK[L, H] { type Out[t] = Out0[t] }
 
 //   implicit def singleton[H[_], G[_]]: Aux[ConsK[H, CNilK, ?], G, ConsK[H, ConsK[G, CNilK, ?], ?]] =
 //     new MergeOneRightHK[ConsK[H, CNilK, ?], G] {
@@ -530,7 +530,7 @@ trait PrependHKLower {
 
 // trait LowerMergeOneRightHK extends LowerMergeOneRightHK2 {
 
-//   implicit def contains[H[_], T[_] <: CoproductK[_]]
+//   implicit def contains[H[_], T[_] <: CopK[_]]
 //     (implicit
 //       contains: ContainsHK[T, H]
 //     ): MergeOneRightHK.Aux[T, H, T] =
@@ -545,7 +545,7 @@ trait PrependHKLower {
 // }
 
 // trait LowerMergeOneRightHK2 {
-//   implicit def corec[H[_], K[_], T[_] <: CoproductK[_], T2[_] <: CoproductK[_]]
+//   implicit def corec[H[_], K[_], T[_] <: CopK[_], T2[_] <: CopK[_]]
 //     (implicit next: MergeOneRightHK.Aux[T, H, T2]): MergeOneRightHK.Aux[ConsK[K, T, ?], H, ConsK[K, T2, ?]] =
 //       new MergeOneRightHK[ConsK[K, T, ?], H] {
 //         type Out[t] = ConsK[K, T2, t]
@@ -559,8 +559,8 @@ trait PrependHKLower {
 //       }
 // }
 
-// trait MergeCopHK[L[_] <: CoproductK[_], R[_] <: CoproductK[_]] {
-//   type Out[_] <: CoproductK[_]
+// trait MergeCopHK[L[_] <: CopK[_], R[_] <: CopK[_]] {
+//   type Out[_] <: CopK[_]
 
 //   def fromLeft[A](la: L[A]): Out[A]
 
@@ -570,12 +570,12 @@ trait PrependHKLower {
 
 // object MergeCopHK extends LowerMergeCopHK {
   
-//   def apply[L[_] <: CoproductK[_], R[_] <: CoproductK[_]]
+//   def apply[L[_] <: CopK[_], R[_] <: CopK[_]]
 //     (implicit mergeCopHK: MergeCopHK[L, R]): Aux[L, R, mergeCopHK.Out] = mergeCopHK
 
-//   type Aux[L[_] <: CoproductK[_], R[_] <: CoproductK[_], Out0[_] <: CoproductK[_]] = MergeCopHK[L, R] { type Out[t] = Out0[t] }
+//   type Aux[L[_] <: CopK[_], R[_] <: CopK[_], Out0[_] <: CopK[_]] = MergeCopHK[L, R] { type Out[t] = Out0[t] }
 
-//   implicit def one[L[_] <: CoproductK[_], H[_], LH[_] <: CoproductK[_]](
+//   implicit def one[L[_] <: CopK[_], H[_], LH[_] <: CopK[_]](
 //     implicit mergeOne: MergeOneRightHK.Aux[L, H, LH]
 //   ): Aux[L, ConsK[H, CNilK, ?], LH] = 
 //     new MergeCopHK[L, ConsK[H, CNilK, ?]] {
@@ -591,7 +591,7 @@ trait PrependHKLower {
 // }
 
 // trait LowerMergeCopHK {
-//   implicit def corec[L[_] <: CoproductK[_], H[_], LH[_] <: CoproductK[_], T[_] <: CoproductK[_], T2[_] <: CoproductK[_]](
+//   implicit def corec[L[_] <: CopK[_], H[_], LH[_] <: CopK[_], T[_] <: CopK[_], T2[_] <: CopK[_]](
 //     implicit mergeOne: MergeOneRightHK.Aux[L, H, LH], next: MergeCopHK.Aux[LH, T, T2]
 //   ): MergeCopHK.Aux[L, ConsK[H, T, ?], T2] =
 //     new MergeCopHK[L, ConsK[H, T, ?]] {
@@ -607,8 +607,8 @@ trait PrependHKLower {
 
 
 
-/*trait ContainsHKLub[L[_] <: CoproductK[_], H[_]] extends Serializable {
-  type R[_] <: CoproductK[_]
+/*trait ContainsHKLub[L[_] <: CopK[_], H[_]] extends Serializable {
+  type R[_] <: CopK[_]
 
   type Lub[_]
 
@@ -619,13 +619,13 @@ trait PrependHKLower {
 
 object ContainsHKLub extends LowerContainsHKLub {
 
-  type Aux[L[_] <: CoproductK[_], H[_], R0[_] <: CoproductK[_], Lub0[_]] =
+  type Aux[L[_] <: CopK[_], H[_], R0[_] <: CopK[_], Lub0[_]] =
     ContainsHKLub[L, H] { type R[t] = R0[t]; type Lub[t] = Lub0[t] }
   
-  def apply[L[_] <: CoproductK[_], H[_]]
+  def apply[L[_] <: CopK[_], H[_]]
     (implicit containsHK: ContainsHKLub[L, H]): Aux[L, H, containsHK.R, containsHK.Lub] = containsHK
 
-  implicit def head[H[_], K[_], L[_] <: CoproductK[_]](
+  implicit def head[H[_], K[_], L[_] <: CopK[_]](
     implicit ev: H[_] <:< K[_]
   ): ContainsHKLub.Aux[ConsK[K, L, ?], H, L, K] =
     new ContainsHKLub[ConsK[K, L, ?], H] {
@@ -645,7 +645,7 @@ object ContainsHKLub extends LowerContainsHKLub {
 
 trait LowerContainsHKLub {
 
-  implicit def corec[H[_], K[_], L[_] <: CoproductK[_], RT[_] <: CoproductK[_], RTLub[_]](
+  implicit def corec[H[_], K[_], L[_] <: CopK[_], RT[_] <: CopK[_], RTLub[_]](
     implicit next: ContainsHKLub.Aux[L, H, RT, RTLub]
   ): ContainsHKLub.Aux[ConsK[K, L, ?], H, ConsK[K, RT, ?], RTLub] =
     new ContainsHKLub[ConsK[K, L, ?], H] {
