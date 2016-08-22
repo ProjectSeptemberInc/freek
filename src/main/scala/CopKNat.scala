@@ -14,5 +14,5 @@ trait CopKNat[C[_] <: CopK[_]] {
 }
 
 object CopKNat {
-def apply[C[_] <: CopK[_]] = new CopKNat[C] {}
+  def apply[C[_] <: CopK[_]] = new CopKNat[C] {}
 }

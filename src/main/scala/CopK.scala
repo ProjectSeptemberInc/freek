@@ -12,6 +12,7 @@ sealed trait CopK[A] extends Product with Serializable
 
 sealed trait CNilK[A] extends CopK[A]
 
+// classic model
 // sealed trait ConsK[H[_], L[_] <: CopK[_], A] extends CopK[A] {
 //   type Cop[t] = ConsK[H, L, t]
 // }

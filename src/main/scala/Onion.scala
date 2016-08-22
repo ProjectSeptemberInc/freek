@@ -312,6 +312,7 @@ trait HKK[FA] {
   type A
 }
 
+@implicitNotFound("could not decompose ${FA} into a stack of type containers F[G[...X[A]]]")
 object HKK extends HKK3 {
 
   type Aux[FA, A0] = HKK[FA] { type A = A0 }

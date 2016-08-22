@@ -44,7 +44,7 @@ package object freek extends LowerImplicits with HK {
     ): OnionT[Free, subdsl.Cop, O, A] = toOnionT0(freek[C]).onionT[O]
   }
 
-  implicit class FreeExtend[F[_] <: CopK[_], A](val free: Free[F, A]) extends AnyVal {
+  implicit class FreeExtendCopK[F[_] <: CopK[_], A](val free: Free[F, A]) extends AnyVal {
     @inline def expand[C <: DSL](implicit subdsl: SubDSL[F, C]): Free[subdsl.Cop, A] =
       Freek.expand[F, subdsl.Cop, A](free)(subdsl.sub) //.asInstanceOf[Free[subdsl.Cop, A]]
 
@@ -55,7 +55,7 @@ package object freek extends LowerImplicits with HK {
     })
   }
 
-  implicit class ToFreeOps[F[_], A](val free: Free[F, A]) extends AnyVal {   
+  implicit class FreeExtend[F[_], A](val free: Free[F, A]) extends AnyVal {   
     @inline def expand[C <: DSL](implicit subdsl: SubDSL[In1[F, ?], C]): Free[subdsl.Cop, A] =
       free.mapSuspension(new (F ~> In1[F, ?]) {
         def apply[A](fa: F[A]): In1[F, A] = In1(fa)
