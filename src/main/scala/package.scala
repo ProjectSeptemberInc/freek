@@ -109,7 +109,7 @@ package object freek extends LowerImplicits with HK {
       , pr3: PeelRight3[O]
     ): OnionT[TC, F, pr3.OutS, pr3.Out[A]] = OnionT.liftTHK(tc).peelRight3
 
-    @inline def onionP[O <: Onion](
+    @inline def onion[O <: Onion](
       implicit 
         tcMonad: Monad[TC[F, ?]]
       , pointer: Pointer[O]
@@ -145,7 +145,7 @@ package object freek extends LowerImplicits with HK {
     ): OnionT[TC, F, O, A] =
       OnionT.liftT2(tc)
 
-    @inline def onionP[O <: Onion](
+    @inline def onion[O <: Onion](
       implicit 
         tcMonad: Monad[TC[F, ?]]
       , pointer: Pointer[O]
@@ -168,7 +168,7 @@ package object freek extends LowerImplicits with HK {
       , traverser: Traverser[O]
     ): OnionT[TC, F, O, A] = OnionT.liftT(tc)
 
-    @inline def onionP[O <: Onion](
+    @inline def onion[O <: Onion](
       implicit 
         tcMonad: Monad[TC[F, ?]]
       , pointer: Pointer[O]

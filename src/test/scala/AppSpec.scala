@@ -381,7 +381,7 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "manage monadic onions of result types manipulating Option[A] using OnionP" in {
+  "freek" should "manage monadic onions of result types manipulating Option[A] using Onion" in {
     import cats.std.future._
     import cats.std.option._
     import cats.std.list._
@@ -405,15 +405,15 @@ class AppSpec extends FlatSpec with Matchers {
     val PRG = DSL.Make[PRG]
 
     val prg = for {
-      iOpt  <-  Foo1("5").freek[PRG].onionP[O]
+      iOpt  <-  Foo1("5").freek[PRG].onion[O]
       i2    <-  iOpt match {
                   case Some(i) => Foo2(i).freek[PRG].onionT[O]
                   case None => Foo2(0).freek[PRG].onionT[O]
                 }
       _     <-  Log.info("toto " + i2).freek[PRG].onionT[O]
       _     <-  Foo3.freek[PRG].onionT[O]
-      s     <-  Bar1(i2.toString).freek[PRG].onionP[O]
-      i3    <-  Foo4(i2).freek[PRG].onionP[O]
+      s     <-  Bar1(i2.toString).freek[PRG].onion[O]
+      i3    <-  Foo4(i2).freek[PRG].onion[O]
     } yield (i3)
 
     val logger2Future = new (Log.DSL ~> Future) {
@@ -802,7 +802,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val f1 = for {
       _ <- Bar1("bar1").freek[PRG].onionT[O]
-      _ <- Foo1("foo1").freek[PRG].onionP[O]
+      _ <- Foo1("foo1").freek[PRG].onion[O]
     } yield (())
 
     val f2: Free[PRG.Cop, Option[Int]] = for {
