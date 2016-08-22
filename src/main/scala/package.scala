@@ -4,7 +4,7 @@ import cats.{~>, Monad}
 import cats.free.Free
 
 /** a few implicit conversions */
-package object freek extends HK {
+package object freek extends LowerImplicits with HK {
 
   /** Will deconstruct G[HA] using HKK & Lifter2 if HA is not simply */
   implicit class ToFreek2[F[_], G[_], HA, A](fa: F[G[HA]])(implicit ga: HKK.Aux[G[HA], A]) {
@@ -23,7 +23,7 @@ package object freek extends HK {
       , mapper: Mapper[O]
       , binder: Binder[O]
       , traverser: Traverser[O]
-    ): OnionT[Free, subdsl.Cop, O, A] = OnionT.liftT3(freek[C])
+    ): OnionT[Free, subdsl.Cop, O, A] = OnionT.liftTHK(freek[C])
   }
 
   implicit class ToFreek1[F[_], A](val fa: F[A]) extends AnyVal {
@@ -62,9 +62,7 @@ package object freek extends HK {
       }).expand[C]
   }
 
-  implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
-
-  case class toOnionT3[TC[_[_], _], F[_], GA, A](val tc: TC[F, GA])(
+  implicit class toOnionTGA[TC[_[_], _], F[_], GA, A](val tc: TC[F, GA])(
     implicit ga: HKK.Aux[GA, A]
   ) {
 
@@ -76,8 +74,40 @@ package object freek extends HK {
       , mapper: Mapper[O]
       , binder: Binder[O]
       , traverser: Traverser[O]
-    ): OnionT[TC, F, O, A] =
-      OnionT.liftT3(tc)
+    ): OnionT[TC, F, O, A] = OnionT.liftTHK(tc)
+
+    @inline def onionT1[O <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , lifter2: Lifter2.Aux[GA, O, A]
+      , pointer: Pointer[O]
+      , mapper: Mapper[O]
+      , binder: Binder[O]
+      , traverser: Traverser[O]
+      , pr: PeelRight[O]
+    ): OnionT[TC, F, pr.OutS, pr.Out[A]] = OnionT.liftTHK(tc).peelRight
+
+    @inline def onionT2[O <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , lifter2: Lifter2.Aux[GA, O, A]
+      , pointer: Pointer[O]
+      , mapper: Mapper[O]
+      , binder: Binder[O]
+      , traverser: Traverser[O]
+      , pr2: PeelRight2[O]
+    ): OnionT[TC, F, pr2.OutS, pr2.Out[A]] = OnionT.liftTHK(tc).peelRight2
+
+    @inline def onionT3[O <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , lifter2: Lifter2.Aux[GA, O, A]
+      , pointer: Pointer[O]
+      , mapper: Mapper[O]
+      , binder: Binder[O]
+      , traverser: Traverser[O]
+      , pr3: PeelRight3[O]
+    ): OnionT[TC, F, pr3.OutS, pr3.Out[A]] = OnionT.liftTHK(tc).peelRight3
 
     @inline def onionP[O <: Onion](
       implicit 
@@ -90,6 +120,18 @@ package object freek extends HK {
 
   }
 
+  implicit class toOnionExpand[C[_]<: CopK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) {
+
+    def freeko[F <: DSL, O2 <: Onion](
+      implicit
+        subdslDSL: SubDSL[C, F]
+      , expander: Expander[O, O2]
+    ): OnionT[Free, subdslDSL.Cop, O2, A] = {
+      OnionT(onion.value.expand[F]).expand[O2]
+    }
+
+  }  
+/*
   implicit class toOnionT2[TC[_[_], _], F[_], G[_], H[_], A](val tc: TC[F, G[H[A]]]) extends AnyVal {
 
     @inline def onionT[O <: Onion](
@@ -136,30 +178,27 @@ package object freek extends HK {
     ): OnionT[TC, F, O, G[A]] = OnionT.liftP(tc)
 
   }
+*/
 
-  implicit class toOnionT0[TC[_[_], _], F[_], A](val tc: TC[F, A]) extends AnyVal {
+}
 
-    @inline def onionT[O <: Onion](
-    implicit 
-        tcMonad: Monad[TC[F, ?]]
-      , pointer: Pointer[O]
-      , mapper: Mapper[O]
-      , binder: Binder[O]
-      , traverser: Traverser[O]
-    ): OnionT[TC, F, O, A] =
-      OnionT.liftP(tc)
+package freek {
+  trait LowerImplicits {
+    implicit class toOnionT0[TC[_[_], _], F[_], A](val tc: TC[F, A]) {
 
-  }
+      @inline def onionT[O <: Onion](
+      implicit 
+          tcMonad: Monad[TC[F, ?]]
+        , pointer: Pointer[O]
+        , mapper: Mapper[O]
+        , binder: Binder[O]
+        , traverser: Traverser[O]
+      ): OnionT[TC, F, O, A] =
+        OnionT.liftP(tc)
 
-  implicit class toOnionT4[C[_]<: CopK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) extends AnyVal {
-
-    def freeko[F <: DSL, O2 <: Onion](
-      implicit
-        subdslDSL: SubDSL[C, F]
-      , expander: Expander[O, O2]
-    ): OnionT[Free, subdslDSL.Cop, O2, A] = {
-      OnionT(onion.value.expand[F]).expand[O2]
     }
+
+    implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
 
   }
 }

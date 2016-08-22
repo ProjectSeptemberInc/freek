@@ -232,6 +232,65 @@ object PeelRight {
 }
 
 
+trait PeelRight2[S <: Onion] {
+  type OutS <: Onion
+  type Out[_]
+
+  def peelRight[A](s: S#Layers[A]): OutS#Layers[Out[A]]
+}
+
+
+object PeelRight2 {
+
+  type Aux[S <: Onion, OutS0 <: Onion, Out0[_]] = PeelRight2[S] { type OutS = OutS0; type Out[t] = Out0[t] }
+
+  def apply[S <: Onion](implicit dr: PeelRight[S]) = dr
+
+  implicit def two[S <: Onion, OutS1 <: Onion, Out1[_], OutS2 <: Onion, Out2[_]](
+    implicit
+      peel1: PeelRight.Aux[S, OutS1, Out1]
+    , peel2: PeelRight.Aux[OutS1, OutS2, Out2]
+  ): PeelRight2.Aux[S, OutS2, λ[t => Out2[Out1[t]]]] = new PeelRight2[S] {
+    type OutS = OutS2
+    type Out[t] = Out2[Out1[t]]
+
+    def peelRight[A](hka: S#Layers[A]): OutS2#Layers[Out2[Out1[A]]] = {
+      peel2.peelRight(peel1.peelRight(hka))
+    }
+  }
+
+}
+
+trait PeelRight3[S <: Onion] {
+  type OutS <: Onion
+  type Out[_]
+
+  def peelRight[A](s: S#Layers[A]): OutS#Layers[Out[A]]
+}
+
+
+object PeelRight3 {
+
+  type Aux[S <: Onion, OutS0 <: Onion, Out0[_]] = PeelRight3[S] { type OutS = OutS0; type Out[t] = Out0[t] }
+
+  def apply[S <: Onion](implicit dr: PeelRight[S]) = dr
+
+  implicit def three[S <: Onion, OutS1 <: Onion, Out1[_], OutS2 <: Onion, Out2[_], OutS3 <: Onion, Out3[_]](
+    implicit
+      peel1: PeelRight.Aux[S, OutS1, Out1]
+    , peel2: PeelRight.Aux[OutS1, OutS2, Out2]
+    , peel3: PeelRight.Aux[OutS2, OutS3, Out3]
+  ): PeelRight3.Aux[S, OutS3, λ[t => Out3[Out2[Out1[t]]]]] = new PeelRight3[S] {
+    type OutS = OutS3
+    type Out[t] = Out3[Out2[Out1[t]]]
+
+    def peelRight[A](hka: S#Layers[A]): OutS3#Layers[Out3[Out2[Out1[A]]]] = {
+      peel3.peelRight(peel2.peelRight(peel1.peelRight(hka)))
+    }
+  }
+
+}
+
 trait Wrap[H[_], S <: Onion] {
   type Out <: Onion
 

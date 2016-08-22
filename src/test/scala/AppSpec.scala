@@ -153,10 +153,10 @@ class AppSpec extends FlatSpec with Matchers {
 
       // APP DEFINITION
       // DSL.Make DSL in a higher-kinded coproduct
-      // Log.DSL :@: DB.DSL :@: NoDSL builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
-      // NoDSL corresponds to a higher-kinded CNil or no-effect combinator
+      // Log.DSL :@: DB.DSL :@: NilDSL builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
+      // NilDSL corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
-      type PRG = Log.DSL :|: DB.DSL :|: NoDSL
+      type PRG = Log.DSL :|: DB.DSL :|: NilDSL
       val PRG = DSL.Make[PRG]
 
       /** the DSL.Make */
@@ -288,7 +288,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
     final case object Bar3 extends Foo[Unit]
 
-    type PRG = Foo :|: Log.DSL :|: NoDSL
+    type PRG = Foo :|: Log.DSL :|: NilDSL
     val PRG = DSL.Make[PRG]
 
     val prg = for {
@@ -336,7 +336,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
@@ -397,7 +397,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Bulb
 
@@ -461,7 +461,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
@@ -533,7 +533,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
@@ -598,7 +598,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
@@ -630,7 +630,7 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: NoDSL
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
@@ -688,7 +688,7 @@ class AppSpec extends FlatSpec with Matchers {
       case class Delete(no: String) extends Repo[Xor[String, Unit]]
 
       object Repo {
-        type PRG = Repo :|: NoDSL
+        type PRG = Repo :|: NilDSL
         type O = Xor[String, ?] :&: Bulb
       }
 
@@ -796,7 +796,7 @@ class AppSpec extends FlatSpec with Matchers {
     case class Put[K, V](key: K, value: V) extends KVS[K, V, Unit]
 
     type KVSA[A] = KVS[String, Int, A]
-    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: NoDSL
+    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: NilDSL
     val PRG = DSL.Make[PRG]
     type O = Option :&: Bulb
 
@@ -811,5 +811,64 @@ class AppSpec extends FlatSpec with Matchers {
 
     val f3: Free[PRG.Cop, Option[Int]] = Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
   }
+
+  "freek" should "special cases 2" in {
+    sealed trait Foo1[A]
+    final case class Bar1(s: Int) extends Foo1[List[Int]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo2[Option[Int]]
+    final case class Bar22(s: Int) extends Foo2[List[Option[Int]]]
+
+    sealed trait Foo3[A]
+    final case class Bar31(s: Long) extends Foo3[Xor[String, Long]]
+    final case class Bar32(s: Float) extends Foo3[Xor[String, List[Float]]]
+    final case class Bar33(s: Double) extends Foo3[Xor[String, Option[Boolean]]]
+    
+    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: List :&: Option :&: Bulb
+
+    val f1: Free[PRG.Cop, Xor[String, List[Option[Unit]]]] = (for {
+      i <- Bar1(3).freek[PRG].onionT[O]
+      i <- Bar21(i).freek[PRG].onionT[O]
+      i <- Bar22(i).freek[PRG].onionT[O]
+      l <- Bar31(i.toLong).freek[PRG].onionT[O]
+      l <- Bar32(l.toFloat).freek[PRG].onionT[O]
+      _ <- Bar33(l.toDouble).freek[PRG].onionT[O]
+    } yield (())).value
+
+  }
+
+  "freek" should "special cases 3" in {
+    sealed trait Foo1[A]
+    final case class Bar1(s: Int) extends Foo1[List[Int]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo2[Option[Int]]
+    final case class Bar22(s: Int) extends Foo2[List[Option[Int]]]
+
+    sealed trait Foo3[A]
+    final case class Bar31(s: Int) extends Foo3[Xor[String, Long]]
+    final case class Bar32(s: Float) extends Foo3[Xor[String, List[Float]]]
+    final case class Bar33(s: Double) extends Foo3[Xor[String, Option[Boolean]]]
+    final case class Bar34(s: Double) extends Foo3[Xor[String, List[Option[Boolean]]]]
+    
+    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: List :&: Option :&: Bulb
+
+    // ugly head & get :D
+    val f1: Free[PRG.Cop, Xor[String, String]] = (for {
+      i   <- Bar1(3).freek[PRG].onionT2[O]
+      i   <- Bar21(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar22(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar31(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar32(i.head.get.toFloat).freek[PRG].onionT2[O]
+      i   <- Bar33(i.head.get.toDouble).freek[PRG].onionT2[O]
+    } yield (i.toString)).value
+
+  }
+
 }
 

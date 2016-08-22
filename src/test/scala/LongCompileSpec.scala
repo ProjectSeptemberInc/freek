@@ -58,7 +58,7 @@ class LongCompileSpec extends FlatSpec with Matchers {
     type PRG =
       Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: Foo10 :|: 
       Foo11 :|: Foo12 :|: Foo13 :|: Foo14 :|: Foo15 :|: Foo16 :|: Foo17 :|: Foo18 :|: Foo19 :|: Foo20 :|:
-      NoDSL
+      NilDSL
 
     val PRG = DSL.Make[PRG]
 

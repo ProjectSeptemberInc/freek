@@ -38,6 +38,29 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Layers[A]]) e
       }
     )
 
+  def peelRight2(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , dr: PeelRight2[S]
+  ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
+    OnionT[TC, F, dr.OutS, dr.Out[A]](
+      tcMonad.map(value){ sba: S#Layers[A] =>
+        dr.peelRight(sba)
+      }
+    )    
+
+  def peelRight3(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , dr: PeelRight3[S]
+  ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
+    OnionT[TC, F, dr.OutS, dr.Out[A]](
+      tcMonad.map(value){ sba: S#Layers[A] =>
+        dr.peelRight(sba)
+      }
+    )    
+
+
   def wrap[H[_]](
     implicit
       tcMonad: Monad[TC[F, ?]]
@@ -115,7 +138,7 @@ object OnionT extends OnionTInstances {
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter.lift(fa) })
 
-  def liftT3[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+  def liftTHK[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
     implicit
       tcMonad: Monad[TC[F, ?]]
     , lifter2: Lifter2.Aux[GA, S, A]

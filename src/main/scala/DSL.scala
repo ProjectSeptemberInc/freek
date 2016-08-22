@@ -2,7 +2,7 @@ package freek
 
 /** a type helper to build Coproduct of effects F[_] with a clean syntax
   *
-  * NoDSL is equivalent to higher-kinded CNil
+  * NilDSL is equivalent to higher-kinded CNil
   * to build the equivalent of [t => F[t] :+: G[t] :+: CNilk[t]], use following syntax
   *
   */
@@ -12,8 +12,8 @@ final class :|:[H[_], T <: DSL] extends DSL
 
 final class :||:[T1 <: DSL, T2 <: DSL] extends DSL
 
-trait NoDSL extends DSL
-case object NoDSL extends NoDSL
+trait NilDSL extends DSL
+case object NilDSL extends NilDSL
 
 object DSL {
   class Make[DSL0 <: DSL, C[_] <: CopK[_]] {
@@ -38,22 +38,22 @@ object ToCopK extends LowerToCopK {
     type Cop[t] = C[t]
   }
 
-  implicit val NoDSL: ToCopK.Aux[NoDSL, CNilK] = new ToCopK[NoDSL] {
+  implicit val NilDSL: ToCopK.Aux[NilDSL, CNilK] = new ToCopK[NilDSL] {
     type Cop[t] = CNilK[t]
   }
 
-  implicit def one[H[_]]: ToCopK.Aux[:|:[H, NoDSL], In1[H, ?]] =
-    new ToCopK[:|:[H, NoDSL]] {
+  implicit def one[H[_]]: ToCopK.Aux[:|:[H, NilDSL], In1[H, ?]] =
+    new ToCopK[:|:[H, NilDSL]] {
       type Cop[t] = In1[H, t]
     }
 
-  implicit def two[H[_], H2[_]]: ToCopK.Aux[:|:[H, :|:[H2, NoDSL]], In2[H, H2, ?]] =
-    new ToCopK[:|:[H, :|:[H2, NoDSL]]] {
+  implicit def two[H[_], H2[_]]: ToCopK.Aux[:|:[H, :|:[H2, NilDSL]], In2[H, H2, ?]] =
+    new ToCopK[:|:[H, :|:[H2, NilDSL]]] {
       type Cop[t] = In2[H, H2, t]
     }
 
-  implicit def three[H[_], H2[_], H3[_]]: ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, NoDSL]]], In3[H, H2, H3, ?]] =
-    new ToCopK[:|:[H, :|:[H2, :|:[H3, NoDSL]]]] {
+  implicit def three[H[_], H2[_], H3[_]]: ToCopK.Aux[:|:[H, :|:[H2, :|:[H3, NilDSL]]], In3[H, H2, H3, ?]] =
+    new ToCopK[:|:[H, :|:[H2, :|:[H3, NilDSL]]]] {
       type Cop[t] = In3[H, H2, H3, t]
     }
 
