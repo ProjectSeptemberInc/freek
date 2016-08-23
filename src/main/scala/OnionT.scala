@@ -2,6 +2,7 @@ package freek
 
 import cats.free.Free
 import cats.{Applicative, Functor, FlatMap, Monad, Traverse, Eq}
+import cats.data.Xor
 
 
 /** The OnionT transformer to manipulate monadic stack of results */
@@ -166,6 +167,8 @@ trait OnionTInstances {
 
     override def map[A, B](fa: OnionT[TC, F, S, A])(f: A => B): OnionT[TC, F, S, B] =
       fa.map(f)
+
+    def tailRecM[A, B](a: A)(f: A => OnionT[TC, F, S, Either[A, B]]): OnionT[TC, F, S, B] = defaultTailRecM(a)(f)
   }
 
 

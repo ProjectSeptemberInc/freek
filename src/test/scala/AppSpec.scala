@@ -15,9 +15,9 @@ import scala.concurrent.duration._
 
 // import cats.derived._, functor._, legacy._
 import cats.Functor
-import cats.std.future._
-import cats.std.option._
-import cats.std.list._
+import cats.instances.future._
+import cats.instances.option._
+import cats.instances.list._
 import ExecutionContext.Implicits.global
 
 import freek._
@@ -278,7 +278,7 @@ class AppSpec extends FlatSpec with Matchers {
 
 
   "freek" should "manage monad transformers" in {
-    import cats.std.future._
+    import cats.instances.future._
     import cats.data.OptionT
     import ExecutionContext.Implicits.global
     // import hk._
@@ -321,9 +321,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -382,9 +382,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types manipulating Option[A] using Onion" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -446,9 +446,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types 3" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -513,9 +513,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types with phantom types (upcasting)" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
 
@@ -615,9 +615,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions with freeko" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]

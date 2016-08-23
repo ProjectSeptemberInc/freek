@@ -15,9 +15,9 @@ import scala.concurrent.duration._
 
 // import cats.derived._, functor._, legacy._
 import cats.Functor
-import cats.std.future._
-import cats.std.option._
-import cats.std.list._
+import cats.instances.future._
+import cats.instances.option._
+import cats.instances.list._
 import ExecutionContext.Implicits.global
 
 import freek._

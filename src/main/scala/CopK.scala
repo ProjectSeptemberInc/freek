@@ -466,6 +466,18 @@ trait ReplaceLower {
   }
 }
 
+// trait Flattener[F[_] <: CopK[_]] {
+//   type Out[_] <: CopK[_]
+//   def flatten[TC[_[_], _], F[_], A](t: TC[F, A]): TC[Out, A]
+// }
+
+// object Flattener {
+
+
+//   type Aux[F[_] <: CopK[_], Out0[_] <: CopK[_]] = Flattener[F] { type Out[t] = Out0[t] }
+
+//   implicit def one[F[_] <: CopK[_]]
+// }
 
 // object CopAppend extends CopAppendLower {
 

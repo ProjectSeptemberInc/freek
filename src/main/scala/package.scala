@@ -50,14 +50,14 @@ package object freek extends LowerImplicits with HK {
 
     def interpret[F2[_] <: CopK[_], G[_]: Monad](i: Interpreter[F2, G])(
       implicit sub:SubCop[F, F2]
-    ): G[A] = free.foldMap(new (F ~> G) {
+    ): G[A] = free.foldMapUnsafe(new (F ~> G) {
       def apply[A](fa: F[A]): G[A] = i.nat(sub(fa))
     })
   }
 
   implicit class FreeExtend[F[_], A](val free: Free[F, A]) extends AnyVal {   
     @inline def expand[C <: DSL](implicit subdsl: SubDSL[In1[F, ?], C]): Free[subdsl.Cop, A] =
-      free.mapSuspension(new (F ~> In1[F, ?]) {
+      free.compile(new (F ~> In1[F, ?]) {
         def apply[A](fa: F[A]): In1[F, A] = In1(fa)
       }).expand[C]
   }

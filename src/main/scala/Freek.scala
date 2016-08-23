@@ -13,10 +13,14 @@ object Freek {
 
   def expand[F[_] <: CopK[_], Super[_] <: CopK[_], A](free: Free[F, A])(
     implicit sub: SubCop[F, Super]
-  ): Free[Super, A] = free.mapSuspension(
+  ): Free[Super, A] = free.compile(
     new (F ~> Super) {
       def apply[A](ga: F[A]): Super[A] = sub(ga)
     }
   )
+
+  // def flatten[F[_] <: CopK[_]](free: Free[F, A])(
+  //   implicit flt: Flattener[F]
+  // ): Free[flt.Out, A]
 
 }
