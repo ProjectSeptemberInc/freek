@@ -16,7 +16,7 @@
 <br/>
 ### v0.6.0:
 
-- renamed `FX` to `DSL` and `NilDSL` to `NilDSL` to represent better the fact that freek is more general than effects and about manipulating any DSL.
+- renamed `FX` to `DSL` and `FXNil` to `NilDSL` to represent better the fact that freek is more general than effects and about manipulating any DSL.
 - renamed helped `Program` to `DSL.Make`
 - renamed `CoproductK` to `CopK`
 - renamed `.onionP[O]` to `.onion[O]`
