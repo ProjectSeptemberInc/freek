@@ -870,5 +870,26 @@ class AppSpec extends FlatSpec with Matchers {
 
   }
 
+  "freek" should "special cases 4" in {
+    sealed trait Foo1[A]
+    final case class Bar11(s: Int) extends Foo1[Xor[String, List[Int]]]
+    final case class Bar12(s: List[Int]) extends Foo1[Xor[String, Option[Int]]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo1[Xor[Long, Option[List[Int]]]]
+    final case class Bar22(s: List[Int]) extends Foo1[Xor[Long, Option[Int]]]
+
+    type PRG = Foo1 :|: Foo2 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: Xor[Long, ?] :&: Option :&: Bulb
+
+    val f1: OnionT[Free, PRG.Cop, O, Unit] = for {
+      l1 <- Bar11(5).freek[PRG].onionX1[O]
+      _  <- Bar12(l1).freek[PRG].onionT[O]
+      l2 <- Bar21(6).freek[PRG].onionX2[O]
+      _  <- Bar22(l2).freek[PRG].onionT[O]
+    } yield (())
+
+  }
 }
 

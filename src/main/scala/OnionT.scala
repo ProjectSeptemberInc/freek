@@ -148,6 +148,26 @@ object OnionT extends OnionTInstances {
     , traverser: Traverser[S]
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter2.lift2(fa) })
+
+  def liftTPartial1[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , liftp: PartialLifter1[GA, S]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    // , traverser: Traverser[S]
+  ): OnionT[TC, F, S, liftp.GA] =
+    OnionT(tcMonad.map(fa){ fa => liftp.partialLift(fa) })
+
+  def liftTPartial2[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , liftp: PartialLifter2[GA, S]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    // , traverser: Traverser[S]
+  ): OnionT[TC, F, S, liftp.GA] =
+    OnionT(tcMonad.map(fa){ fa => liftp.partialLift(fa) })
 }
 
 trait OnionTInstances {

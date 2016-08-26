@@ -373,3 +373,57 @@ trait Lifter2Low {
 
 
 }
+
+
+trait PartialLifter1[HA, S <: Onion] {
+  type GA
+  def partialLift(ha: HA): S#Layers[GA]
+}
+
+object PartialLifter1 {
+  type Aux[HA, S <: Onion, GA0] = PartialLifter1[HA, S] { type GA = GA0 }
+
+  def apply[HA, S <: Onion](implicit lifter: PartialLifter1[HA, S]) = lifter
+
+
+  implicit def fga[F[_], GA0, O <: Onion](
+    implicit lifter: Lifter[F, O]
+  ): PartialLifter1.Aux[F[GA0], O, GA0] = new PartialLifter1[F[GA0], O] {
+    type GA = GA0
+    def partialLift(fga: F[GA0]): O#Layers[GA0] = lifter.lift(fga)
+  }
+
+  // implicit def fga[F[_]: Functor, G[_], A0, O <: Onion](
+  //   implicit lifter: Lifter[F, O]
+  // ): PartialLifter1.Aux[F[G[A0]], O, G[A0]] = new PartialLifter1[F[G[A0]], O] {
+  //   type GA = G[A0]
+  //   def partialLift(fga: F[G[A0]]): O#Layers[G[A0]] = lifter.lift(fga)
+  // }
+
+}
+
+trait PartialLifter2[HA, S <: Onion] {
+  type GA
+  def partialLift(ha: HA): S#Layers[GA]
+}
+
+object PartialLifter2 {
+  type Aux[HA, S <: Onion, GA0] = PartialLifter2[HA, S] { type GA = GA0 }
+
+  def apply[HA, S <: Onion](implicit lifter: PartialLifter2[HA, S]) = lifter
+
+  implicit def fga[F[_], G[_], HA0, O <: Onion](
+    implicit lifter: Lifter[λ[t => F[G[t]]], O]
+  ): PartialLifter2.Aux[F[G[HA0]], O, HA0] = new PartialLifter2[F[G[HA0]], O] {
+    type GA = HA0
+    def partialLift(fga: F[G[HA0]]): O#Layers[HA0] = lifter.lift(fga)
+  }
+
+  // implicit def fga[F[_]: Functor, G[_], A0, O <: Onion](
+  //   implicit lifter: Lifter[F, O]
+  // ): PartialLifter1.Aux[F[G[A0]], O, G[A0]] = new PartialLifter1[F[G[A0]], O] {
+  //   type GA = G[A0]
+  //   def partialLift(fga: F[G[A0]]): O#Layers[G[A0]] = lifter.lift(fga)
+  // }
+
+}

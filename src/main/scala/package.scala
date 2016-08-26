@@ -118,6 +118,23 @@ package object freek extends LowerImplicits with HK {
       , traverser: Traverser[O]
     ): OnionT[TC, F, O, GA] = OnionT.liftP(tc)
 
+
+    @inline def onionX1[O <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , liftp: PartialLifter1[GA, O]
+      , mapper: Mapper[O]
+      , binder: Binder[O]
+    ): OnionT[TC, F, O, liftp.GA] = OnionT.liftTPartial1(tc)
+
+    @inline def onionX2[O <: Onion](
+      implicit 
+        tcMonad: Monad[TC[F, ?]]
+      , liftp: PartialLifter2[GA, O]
+      , mapper: Mapper[O]
+      , binder: Binder[O]
+    ): OnionT[TC, F, O, liftp.GA] = OnionT.liftTPartial2(tc)
+
   }
 
   implicit class toOnionExpand[C[_]<: CopK[_], O <: Onion, A](val onion: OnionT[Free, C, O, A]) {
