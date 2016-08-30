@@ -53,6 +53,24 @@ package object freek extends LowerImplicits with HK {
     ): G[A] = free.foldMapUnsafe(new (F ~> G) {
       def apply[A](fa: F[A]): G[A] = i.nat(sub(fa))
     })
+
+    def flatten[O[_] <: CopK[_]](implicit flt: Flattener.Aux[F, Free, O]): Free[O, A] = flt.flatten(free)
+
+    def transpile[F2[_] <: CopK[_], G[_] <: CopK[_], O[_] <: CopK[_]](i: Interpreter[F2, G])(
+      implicit
+        sub:SubCop[F, F2]
+      , flt: Flattener.Aux[G, Free, O]
+    ): Free[O, A] = flt.flatten(free.compile(new (F ~> G) {
+      def apply[A](fa: F[A]): G[A] = i.nat(sub(fa))
+    }))
+
+    def transpile[F2[_] <: CopK[_], G[_] <: CopK[_], O[_] <: CopK[_]](i: F2 ~> G)(
+      implicit
+        sub:SubCop[F, F2]
+      , flt: Flattener.Aux[G, Free, O]
+    ): Free[O, A] = flt.flatten(free.compile(new (F ~> G) {
+      def apply[A](fa: F[A]): G[A] = i(sub(fa))
+    }))
   }
 
   implicit class FreeExtend[F[_], A](val free: Free[F, A]) extends AnyVal {   
@@ -200,7 +218,7 @@ package object freek extends LowerImplicits with HK {
 }
 
 package freek {
-  trait LowerImplicits {
+  trait LowerImplicits extends LowerImplicits2 {
     implicit class toOnionT0[TC[_[_], _], F[_], A](val tc: TC[F, A]) {
 
       @inline def onionT[O <: Onion](
@@ -215,7 +233,11 @@ package freek {
 
     }
 
-    implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
+    implicit def toInterpreterCopK[F[_] <: CopK[_], R[_]](nat: F ~> R): Interpreter[F, R] = new Interpreter(nat)
 
+  }
+
+  trait LowerImplicits2 {
+    implicit def toInterpreter[F[_], R[_]](nat: F ~> R): Interpreter[In1[F, ?], R] = Interpreter(nat)
   }
 }

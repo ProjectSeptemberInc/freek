@@ -374,6 +374,128 @@ trait PrependHKLower {
 
 }
 
+
+trait AppendHK[L[_] <: CopK[_], H[_]] {
+  type Out[_] <: CopK[_]
+
+  def apply[A](ha: L[A]): Out[A]
+  def single[A](ha: H[A]): Out[A]
+
+  def nat[R[_], A](out: Out[A], nat2: L ~> R, nat1: H ~> R): R[A]
+}
+
+object AppendHK extends AppendHKLower {
+
+  def apply[L[_] <: CopK[_], H[_]]
+    (implicit prep: AppendHK[L, H]): Aux[L, H, prep.Out] = prep
+
+  type Aux[L[_] <: CopK[_], H[_], Out0[_] <: CopK[_]] = AppendHK[L, H] { type Out[t] = Out0[t] }
+
+  implicit def in1[H1[_], H2[_]]: Aux[In1[H1, ?], H2, In2[H1, H2, ?]] =
+    new AppendHK[In1[H1, ?], H2] {
+      type Out[t] = In2[H1, H2, t]
+
+      def apply[A](c: In1[H1, A]): Out[A] = In2l(c.head)
+      def single[A](ha: H2[A]): Out[A] = In2r(ha)
+
+      def nat[R[_], A](out: In2[H1, H2, A], nat1: In1[H1, ?] ~> R, nat2: H2 ~> R): R[A] = out match {
+        case In2l(l) => nat1(In1(l))
+        case In2r(r) => nat2(r)
+      }
+    }
+
+  implicit def in2[H1[_], H2[_], H3[_]]: Aux[In2[H1, H2, ?], H3, In3[H1, H2, H3, ?]] =
+    new AppendHK[In2[H1, H2, ?], H3] {
+      type Out[t] = In3[H1, H2, H3, t]
+
+      def apply[A](c: In2[H1, H2, A]): Out[A] = c match {
+        case In2l(left) => In3l(left)
+        case In2r(right) => In3m(right)
+      }
+
+      def single[A](ha: H3[A]): Out[A] = In3r(ha)
+
+      def nat[R[_], A](out: In3[H1, H2, H3, A], nat1: In2[H1, H2, ?] ~> R, nat2: H3 ~> R): R[A] = out match {
+        case In3l(l) => nat1(In2l(l))
+        case In3m(m) => nat1(In2r(m))
+        case In3r(r) => nat2(r)
+      }
+    }
+
+  implicit def in3[H1[_], H2[_], H3[_], H4[_]]: Aux[In3[H1, H2, H3, ?], H4, AppendK[In3[H1, H2, H3, ?], In1[H4, ?], ?]] =
+    new AppendHK[In3[H1, H2, H3, ?], H4] {
+      type Out[t] = AppendK[In3[H1, H2, H3, ?], In1[H4, ?], t]
+
+      def apply[A](c: In3[H1, H2, H3, A]): Out[A] = Aplk(c)
+
+      def single[A](ha: H4[A]): Out[A] = Aprk(In1(ha))
+
+      def nat[R[_], A](out: AppendK[In3[H1, H2, H3, ?], In1[H4, ?], A], nat1: In3[H1, H2, H3, ?] ~> R, nat2: H4 ~> R): R[A] = out match {
+        case Aplk(m) => nat1(m)
+        case Aprk(In1(l)) => nat2(l)
+      }
+    }
+
+  implicit def append1[H1[_], H2[_], L[_] <: CopK[_]]: Aux[AppendK[L, In1[H1, ?], ?], H2, AppendK[L, In2[H1, H2, ?], ?]] =
+    new AppendHK[AppendK[L, In1[H1, ?], ?], H2] {
+      type Out[t] = AppendK[L, In2[H1, H2, ?], t]
+
+      def apply[A](c: AppendK[L, In1[H1, ?], A]): Out[A] = c match {
+        case Aplk(l) => Aplk(l)
+        case Aprk(In1(r)) => Aprk(In2l(r))
+      }
+
+      def single[A](ha: H2[A]): Out[A] = Aprk(In2r(ha))
+
+      def nat[RR[_], A](out: AppendK[L, In2[H1, H2, ?], A], nat1: AppendK[L, In1[H1, ?], ?] ~> RR, nat2: H2 ~> RR): RR[A] = out match {
+        case Aplk(r) => nat1(Aplk(r))
+        case Aprk(In2l(h1)) => nat1(Aprk(In1(h1)))
+        case Aprk(In2r(h2)) => nat2(h2)
+      }
+    }
+
+  implicit def append2[H1[_], H2[_], H3[_], L[_] <: CopK[_]]: Aux[AppendK[L, In2[H1, H2, ?], ?], H3, AppendK[L, In3[H1, H2, H3, ?], ?]] =
+    new AppendHK[AppendK[L, In2[H1, H2, ?], ?], H3] {
+      type Out[t] = AppendK[L, In3[H1, H2, H3, ?], t]
+
+      def apply[A](c: AppendK[L, In2[H1, H2, ?], A]): Out[A] = c match {
+        case Aplk(r) => Aplk(r)
+        case Aprk(In2l(h1)) => Aprk(In3l(h1))
+        case Aprk(In2r(h2)) => Aprk(In3m(h2))
+      }
+
+      def single[A](ha: H3[A]): Out[A] = Aprk(In3r(ha))
+
+      def nat[RR[_], A](out: AppendK[L, In3[H1, H2, H3, ?], A], nat1: AppendK[L, In2[H1, H2, ?], ?] ~> RR, nat2: H3 ~> RR): RR[A] = out match {
+        case Aplk(l) => nat1(Aplk(l))
+        case Aprk(In3l(h1)) => nat1(Aprk(In2l(h1)))
+        case Aprk(In3m(h2)) => nat1(Aprk(In2r(h2)))
+        case Aprk(In3r(h3)) => nat2(h3)
+      }
+    }
+
+}
+
+
+trait AppendHKLower {
+
+  implicit def append[H[_], L[_] <: CopK[_], R[_] <: CopK[_]]: AppendHK.Aux[AppendK[L, R, ?], H, AppendK[AppendK[L, R, ?], In1[H, ?], ?]] =
+    new AppendHK[AppendK[L, R, ?], H] {
+      type Out[t] = AppendK[AppendK[L, R, ?], In1[H, ?], t]
+
+      def apply[A](c: AppendK[L, R, A]): Out[A] = Aplk(c)
+
+      def single[A](ha: H[A]): Out[A] = Aprk(In1(ha))
+
+      def nat[RR[_], A](out: AppendK[AppendK[L, R, ?], In1[H, ?], A], nat1: AppendK[L, R, ?] ~> RR, nat2: H ~> RR): RR[A] = out match {
+        case Aplk(l) => nat1(l)
+        case Aprk(In1(h)) => nat2(h)
+      }
+    }
+
+
+}
+
 trait Replace[C[_] <: CopK[_], F[_], G[_]] {
 
   type Out[_] <: CopK[_]
@@ -466,18 +588,182 @@ trait ReplaceLower {
   }
 }
 
-// trait Flattener[F[_] <: CopK[_]] {
-//   type Out[_] <: CopK[_]
-//   def flatten[TC[_[_], _], F[_], A](t: TC[F, A]): TC[Out, A]
-// }
+trait Flattener[F[_] <: CopK[_], TC[_[_], _]] {
+  type Out[_] <: CopK[_]
+  def flatten[A](t: TC[F, A]): TC[Out, A]
+}
 
-// object Flattener {
+object Flattener extends FlattenerLower{
+  import cats.free.Free
+
+  type Aux[F[_] <: CopK[_], TC[_[_], _], Out0[_] <: CopK[_]] = Flattener[F, TC] { type Out[t] = Out0[t] }
+
+  implicit def in1[F[_] <: CopK[_]]: Flattener.Aux[In1[Free[F, ?], ?], Free, F] =
+    new Flattener[In1[Free[F, ?], ?], Free] {
+      type Out[t] = F[t]
+
+      def flatten[A](tca: Free[In1[Free[F, ?], ?], A]): Free[F, A] = 
+        tca.foldMapUnsafe(new (In1[Free[F, ?], ?] ~> Free[F, ?]) {
+          def apply[A](in: In1[Free[F, ?], A]): Free[F, A] = in match {
+            case In1(free) => free
+          }
+        })
+    }
+
+  implicit def in2Left[F[_] <: CopK[_], R[_], O[_] <: CopK[_]](
+    implicit ap: AppendHK.Aux[F, R, O]
+  ): Flattener.Aux[In2[Free[F, ?], R, ?], Free, O] =
+    new Flattener[In2[Free[F, ?], R, ?], Free] {
+      type Out[t] = O[t]
+
+      def flatten[A](tca: Free[In2[Free[F, ?], R, ?], A]): Free[O, A] = 
+        tca.foldMapUnsafe(new (In2[Free[F, ?], R, ?] ~> Free[O, ?]) {
+          def apply[A](in: In2[Free[F, ?], R, A]): Free[O, A] = in match {
+            case In2l(free) => free.compile(new (F ~> O) {
+              def apply[A](fa: F[A]): O[A] = ap(fa)
+            })
+
+            case In2r(r) => Free.liftF(ap.single(r))
+          }
+        })
+    }
+
+  implicit def in3Left[F[_] <: CopK[_], M[_], R[_], O1[_] <: CopK[_], O2[_] <: CopK[_]](
+    implicit  ap1: AppendHK.Aux[F, M, O1]
+            , ap2: AppendHK.Aux[O1, R, O2]
+  ): Flattener.Aux[In3[Free[F, ?], M, R, ?], Free, O2] =
+    new Flattener[In3[Free[F, ?], M, R, ?], Free] {
+      type Out[t] = O2[t]
+
+      def flatten[A](tca: Free[In3[Free[F, ?], M, R, ?], A]): Free[O2, A] = 
+        tca.foldMapUnsafe(new (In3[Free[F, ?], M, R, ?] ~> Free[O2, ?]) {
+          def apply[A](in: In3[Free[F, ?], M, R, A]): Free[O2, A] = in match {
+            case In3l(free) => free.compile(new (F ~> O2) {
+              def apply[A](fa: F[A]): O2[A] = ap2(ap1(fa))
+            })
+
+            case In3m(m) => Free.liftF(ap2(ap1.single(m)))
+
+            case In3r(r) => Free.liftF(ap2.single(r))
+          }
+        })
+    }
+
+}
+
+trait FlattenerLower extends FlattenerLower2 {
+  import cats.free.Free
+
+  implicit def in2Right[F[_] <: CopK[_], L[_], O[_] <: CopK[_]](
+    implicit pr: PrependHK.Aux[L, F, O]
+  ): Flattener.Aux[In2[L, Free[F, ?], ?], Free, O] =
+    new Flattener[In2[L, Free[F, ?], ?], Free] {
+      type Out[t] = O[t]
+
+      def flatten[A](tca: Free[In2[L, Free[F, ?], ?], A]): Free[O, A] = 
+        tca.foldMapUnsafe(new (In2[L, Free[F, ?], ?] ~> Free[O, ?]) {
+          def apply[A](in: In2[L, Free[F, ?], A]): Free[O, A] = in match {
+            case In2l(l) => Free.liftF(pr.single(l))
+
+            case In2r(free) => free.compile(new (F ~> O) {
+              def apply[A](fa: F[A]): O[A] = pr(fa)
+            })
+          }
+        })
+    }
+
+  implicit def in3Middle[F[_] <: CopK[_], L[_], R[_], O1[_] <: CopK[_], O2[_] <: CopK[_]](
+    implicit  pr: PrependHK.Aux[L, F, O1]
+            , ap: AppendHK.Aux[O1, R, O2]
+  ): Flattener.Aux[In3[L, Free[F, ?], R, ?], Free, O2] =
+    new Flattener[In3[L, Free[F, ?], R, ?], Free] {
+      type Out[t] = O2[t]
+
+      def flatten[A](tca: Free[In3[L, Free[F, ?], R, ?], A]): Free[O2, A] = 
+        tca.foldMapUnsafe(new (In3[L, Free[F, ?], R, ?] ~> Free[O2, ?]) {
+          def apply[A](in: In3[L, Free[F, ?], R, A]): Free[O2, A] = in match {
+            case In3l(l) => Free.liftF(ap(pr.single(l)))
+
+            case In3m(free) => free.compile(new (F ~> O2) {
+              def apply[A](fa: F[A]): O2[A] = ap(pr(fa))
+            })
+
+            case In3r(r) => Free.liftF(ap.single(r))
+          }
+        })
+    }
 
 
-//   type Aux[F[_] <: CopK[_], Out0[_] <: CopK[_]] = Flattener[F] { type Out[t] = Out0[t] }
+  implicit def apkLeft[F[_] <: CopK[_], L[_] <: CopK[_], R[_] <: CopK[_], O[_] <: CopK[_]](
+    implicit flt: Flattener.Aux[L, Free, O]
+  ): Flattener.Aux[AppendK[L, R, ?], Free, AppendK[O, R, ?]] = new Flattener[AppendK[L, R, ?], Free] {
+    type Out[t] = AppendK[O, R, t]
 
-//   implicit def one[F[_] <: CopK[_]]
-// }
+    def flatten[A](tca: Free[AppendK[L, R, ?], A]): Free[AppendK[O, R, ?], A] = 
+
+      tca.foldMapUnsafe(new (AppendK[L, R, ?] ~> Free[AppendK[O, R, ?], ?]) {
+        def apply[A](in: AppendK[L, R, A]): Free[AppendK[O, R, ?], A] = in match {
+          case Aplk(l) =>
+            val free = Free.liftF(l)
+            flt.flatten(free).compile(new (O ~> AppendK[O, R, ?]) {
+              def apply[A](oa: O[A]): AppendK[O, R, A] = Aplk(oa)
+            })
+
+          case Aprk(r) => Free.liftF(Aprk(r))
+        }
+      })
+  }
+
+}
+
+trait FlattenerLower2 {
+  import cats.free.Free
+  
+  implicit def in3Right[F[_] <: CopK[_], L[_], M[_], O1[_] <: CopK[_], O2[_] <: CopK[_]](
+    implicit  pr1: PrependHK.Aux[M, F, O1]
+            , pr2: PrependHK.Aux[L, O1, O2]
+  ): Flattener.Aux[In3[L, M, Free[F, ?], ?], Free, O2] =
+    new Flattener[In3[L, M, Free[F, ?], ?], Free] {
+      type Out[t] = O2[t]
+
+      def flatten[A](tca: Free[In3[L, M, Free[F, ?], ?], A]): Free[O2, A] = 
+        tca.foldMapUnsafe(new (In3[L, M, Free[F, ?], ?] ~> Free[O2, ?]) {
+          def apply[A](in: In3[L, M, Free[F, ?], A]): Free[O2, A] = in match {
+            case In3l(l) => Free.liftF(pr2.single(l))
+
+            case In3m(m) => Free.liftF(pr2(pr1.single(m)))
+
+            case In3r(free) => free.compile(new (F ~> O2) {
+              def apply[A](fa: F[A]): O2[A] = pr2(pr1(fa))
+            })
+
+          }
+        })
+    }
+
+
+  implicit def ApkRight[F[_] <: CopK[_], L[_] <: CopK[_], R[_] <: CopK[_], O[_] <: CopK[_]](
+    implicit flt: Flattener.Aux[R, Free, O]
+  ): Flattener.Aux[AppendK[L, R, ?], Free, AppendK[L, O, ?]] = new Flattener[AppendK[L, R, ?], Free] {
+    type Out[t] = AppendK[L, O, t]
+
+    def flatten[A](tca: Free[AppendK[L, R, ?], A]): Free[AppendK[L, O, ?], A] = 
+
+      tca.foldMapUnsafe(new (AppendK[L, R, ?] ~> Free[AppendK[L, O, ?], ?]) {
+        def apply[A](in: AppendK[L, R, A]): Free[AppendK[L, O, ?], A] = in match {
+          case Aplk(l) =>
+            Free.liftF(Aplk(l))
+
+          case Aprk(r) =>
+            val free = Free.liftF(r)
+            flt.flatten(free).compile(new (O ~> AppendK[L, O, ?]) {
+              def apply[A](oa: O[A]): AppendK[L, O, A] = Aprk(oa)
+            })
+
+        }
+      })
+  }
+}
 
 // object CopAppend extends CopAppendLower {
 
