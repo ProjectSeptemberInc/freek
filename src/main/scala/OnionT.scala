@@ -2,10 +2,11 @@ package freek
 
 import cats.free.Free
 import cats.{Applicative, Functor, FlatMap, Monad, Traverse, Eq}
+import cats.data.Xor
 
 
 /** The OnionT transformer to manipulate monadic stack of results */
-case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) extends Product with Serializable {
+case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Layers[A]]) extends Product with Serializable {
 
   def map[B](f: A => B)(
     implicit
@@ -21,7 +22,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , traverser: Traverser[S]
   ): OnionT[TC, F, S, B] =
     OnionT(
-      tcMonad.flatMap(value){ sba: S#Build[A] =>
+      tcMonad.flatMap(value){ sba: S#Layers[A] =>
         val subsbb = traverser.traverse(sba){ a => f(a).value }
         tcMonad.map(subsbb) { sbb => binder.bind(sbb){ sb => sb } }
       }
@@ -33,10 +34,33 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , dr: PeelRight[S]
   ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
     OnionT[TC, F, dr.OutS, dr.Out[A]](
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         dr.peelRight(sba)
       }
     )
+
+  def peelRight2(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , dr: PeelRight2[S]
+  ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
+    OnionT[TC, F, dr.OutS, dr.Out[A]](
+      tcMonad.map(value){ sba: S#Layers[A] =>
+        dr.peelRight(sba)
+      }
+    )    
+
+  def peelRight3(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , dr: PeelRight3[S]
+  ): OnionT[TC, F, dr.OutS, dr.Out[A]] =
+    OnionT[TC, F, dr.OutS, dr.Out[A]](
+      tcMonad.map(value){ sba: S#Layers[A] =>
+        dr.peelRight(sba)
+      }
+    )    
+
 
   def wrap[H[_]](
     implicit
@@ -44,7 +68,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , ul: Wrap[H, S]
   ): OnionT[TC, F, ul.Out, A] =
     OnionT[TC, F, ul.Out, A](
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         ul.wrap(sba)
       }
     )
@@ -55,7 +79,7 @@ case class OnionT[TC[_[_], _], F[_], S <: Onion, A](value: TC[F, S#Build[A]]) ex
     , expander: Expander[S, S2]
   ): OnionT[TC, F, S2, A] =
     OnionT(
-      tcMonad.map(value){ sba: S#Build[A] =>
+      tcMonad.map(value){ sba: S#Layers[A] =>
         expander.expand(sba)
       }
     )
@@ -115,7 +139,7 @@ object OnionT extends OnionTInstances {
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter.lift(fa) })
 
-  def liftT3[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+  def liftTHK[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
     implicit
       tcMonad: Monad[TC[F, ?]]
     , lifter2: Lifter2.Aux[GA, S, A]
@@ -124,6 +148,26 @@ object OnionT extends OnionTInstances {
     , traverser: Traverser[S]
   ): OnionT[TC, F, S, A] =
     OnionT(tcMonad.map(fa){ fa => lifter2.lift2(fa) })
+
+  def liftTPartial1[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , liftp: PartialLifter1[GA, S]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    // , traverser: Traverser[S]
+  ): OnionT[TC, F, S, liftp.GA] =
+    OnionT(tcMonad.map(fa){ fa => liftp.partialLift(fa) })
+
+  def liftTPartial2[TC[_[_], _], F[_], S <: Onion, GA, A](fa: TC[F, GA])(
+    implicit
+      tcMonad: Monad[TC[F, ?]]
+    , liftp: PartialLifter2[GA, S]
+    , mapper: Mapper[S]
+    , binder: Binder[S]
+    // , traverser: Traverser[S]
+  ): OnionT[TC, F, S, liftp.GA] =
+    OnionT(tcMonad.map(fa){ fa => liftp.partialLift(fa) })
 }
 
 trait OnionTInstances {
@@ -143,6 +187,8 @@ trait OnionTInstances {
 
     override def map[A, B](fa: OnionT[TC, F, S, A])(f: A => B): OnionT[TC, F, S, B] =
       fa.map(f)
+
+    def tailRecM[A, B](a: A)(f: A => OnionT[TC, F, S, Either[A, B]]): OnionT[TC, F, S, B] = defaultTailRecM(a)(f)
   }
 
 

@@ -5,18 +5,18 @@ import cats.~>
 /** helper to combine natural transformations
   * (F ~> R :@: G ~> R:@: H ~> R) gives (F :@: G :@: H :@: CNilK ~> R)
   */
-class Interpreter[C[_] <: CoproductK[_], R[_]](
+class Interpreter[C[_] <: CopK[_], R[_]](
   val nat: C ~> R
 ) {
 
-  def :&:[F[_], O[_] <: CoproductK[_]](f: F ~> R)(implicit prep: PrependHK.Aux[F, C, O]): Interpreter[O, R] = new Interpreter(
+  def :&:[F[_], O[_] <: CopK[_]](f: F ~> R)(implicit prep: PrependHK.Aux[F, C, O]): Interpreter[O, R] = new Interpreter(
     new ~>[O, R] {
       def apply[A](c: O[A]): R[A] = prep.nat(c, f, nat)
     }
   )
 
   // TBD
-  // def :&&:[D[_] <: CoproductK[_]](f: Interpreter[D])(
+  // def :&&:[D[_] <: CopK[_]](f: Interpreter[D])(
   //   implicit merge: MergeCopHK[D, C]
   // ): Interpreter[ConsK[F, C, ?], R] = new Interpreter(
   //   // TBD

@@ -14,11 +14,22 @@
 > All versions are published to bintray https://bintray.com/projectseptemberinc/
 
 <br/>
-### v0.5.0 (still kind-of experimentation):
+### v0.6.0:
+
+- renamed `FX` to `DSL` and `NilDSL` to `NilDSL` to represent better the fact that freek is more general than effects and about manipulating any DSL.
+- renamed helped `Program` to `DSL.Make`
+- renamed `CoproductK` to `CopK`
+- renamed `.onionP[O]` to `.onion[O]`
+- introduced `peelRight2 & peelRight2` & `onionT2 & onionT3`
+- removed unneeded specific OnionT implicit converters
+- build for cats-0.4.1/0.6.1/0.7.0
+
+<br/>
+### v0.5.0:
 
 - introduced new model for CoproductK to improve compile-time globally (from O(n) to O(log2(n)))
 - introduced `Program[F <: FX]` to help scalac infer the output CoproductK when using the new optimized model
-- result type of a program based on `freek[PRG]` is no more `PRG.Cop` but `PRG.Cop` based on new `Program[PRG]`
+- result type of a program based on `freek[PRG]` is no more `PRG.Cop` but `PRG.Cop` based on new `DSL.Make[PRG]`
 - optimized implicit order
 
 <br/>
@@ -40,7 +51,7 @@
 <br/>
 ### v0.4.0:
 
-- replaced `type PRG[A] = (Log :|: KVS :|: File :|: FXNil).Cop[A]` by `type PRG = Log :|: KVS :|: File :|: FXNil` to simplify the whole API
+- replaced `type PRG[A] = (Log :|: KVS :|: File :|: NilDSL).Cop[A]` by `type PRG = Log :|: KVS :|: File :|: NilDSL` to simplify the whole API
 - introduced OnionT manipulations `.dropRight`, `.prepend`
 
 <br/>
@@ -71,7 +82,9 @@ scalaVersion := "2.11.8"
 resolvers += Resolver.bintrayRepo("projectseptemberinc", "maven")
 
 libraryDependencies ++= Seq(
-  "com.projectseptember"            %% "freek"                        % "0.5.0"
+  "com.projectseptember"            %% "freek"                        % "0.6.0" // with cats-0.7.0
+//  "com.projectseptember"          %% "freek"                        % "0.6.0_cats-0.4.1" // with cats-0.4.1
+//  "com.projectseptember"          %% "freek"                        % "0.6.0_cats-0.6.1" // with cats-0.6.1
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
 , "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
 )
@@ -123,15 +136,15 @@ So this program will use Log `or` KVS `or` File which is a Sum/Coproduct of the 
 To represent the DSL summing them all, Freek provides you with the following notation:
 
 ```scala
-type PRG = Log :|: KVS :|: File :|: FXNil
-val PRG = Program[PRG]
+type PRG = Log :|: KVS :|: File :|: NilDSL
+val PRG = DSL.Make[PRG]
 ```
 
 Please note:
 
-- `FXNil` is required at the end of the coproduct
-- Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types...
-- `val PRG = Program[PRG]` is the way to instantiate an object that represents your `PRG` type. It might seem artificial and actually it is completely: it is just required to convince scalac that it can infer the right coproduct in output and will be used later.
+- `NilDSL` is required at the end of the coproduct and represents the non-existing DSL
+- Some will complain on the ugly symbol `:|:` but in Scala, there is no other elegant way to combine types (words can't be used in this case)...
+- `val PRG = DSL.Make[PRG]` is the way to instantiate a value that represents your `PRG` type. It might seem artificial and actually it is completely: it is just required to convince scalac that it can infer the right coproduct combining all your DSL and this inferred Coproduct is represented `PRG.Cop` that will be used in all this tutorial.
 
 <br/>
 <br/>
@@ -141,15 +154,15 @@ Now, you want to write a program based on your DSL using Free Monads because it'
 
 So, you're going to use your `DSL[_]` lifted into Free monads `Free[DSL[_], A]` using a classic monadic flow i.e. for-comprehension.
 
-In a for-comprehension, to compile successfully, every line should have the same type. Thus, you need to lift all `Free[DSL[_], A]` to the common Free type `Free[PRG, A]` where `PRG` is the sum of all the DSL used in your program.
+In a for-comprehension, to compile successfully, every line should have the same type. Thus, you need to lift all `Free[DSL[_], A]` to the combined Free type `Free[PRG.Cop, A]` where `PRG.Cop` is the sum of all the DSL used in your program.
 
-In a summary, you need a conversion `DSL[A] => Free[DSL, A] => Free[PRG, A]`.
+In a summary, you need a conversion `DSL[A] => Free[DSL, A] => Free[PRG.Cop, A]`.
 
 This can be done in a trivial way using `.freek[PRG]` in your for-comprehension.
 
 ```scala
-type PRG = Log :|: KVS :|: File :|: FXNil
-val PRG = Program[PRG]
+type PRG = Log :|: KVS :|: File :|: NilDSL
+val PRG = DSL.Make[PRG]
 
 // Here the type is shown for doc but you can omit it, Scala can infer things
 def program(id: String): Free[PRG.Cop, File] = 
@@ -161,10 +174,10 @@ def program(id: String): Free[PRG.Cop, File] =
   } yield (file)
 ```
 
-- Every line is lifted by `.free[PRG]` to `Free[PRG.Cop, A]`: `PRG.Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CoproductK` because Shapeless one doesn't allow to manipulate `F[_]` as we need it.
+- Every line is lifted by `.freek[PRG]` to `Free[PRG.Cop, A]`: `PRG.Cop` builds the real hidden Sum/Coproduct type combining all your DSL. It is a specialized implementation of Shapeless Coproduct for higher-kinded structures called `CopK` because Shapeless representation doesn't allow to manipulate `F[_]` as we need it.
 - Just remind that `PRG` alone is a facility to combine DSL and the real type combining all DSL is `PRG.Cop`.
 - The whole for-comprehension describes a program
-- The result type is `PRG.Cop` (and no more `PRG.Cop` as in previous version of freek): this is the main evolution in version 0.5.0 for developers required to help scalac to infer the right output coproductK using the latest optimized version of `CoproductK`.
+- The result type is `Free[PRG.Cop, ?]`.
 
 > Some people will think about a implicit conversion to avoid having to write `freek[PRG]` but believe my own experience, inference in for-comprehension isn't so logical in Scala and as soon as you manipulate more complex programs, implicit conversion makes inference break with hardly understandable errors.
 
@@ -237,8 +250,8 @@ val interpreter = KVSInterpreter :&: LogInterpreter :&: FileInterpreter
 
 Remark that:
 
-- there is no equivalent to `FXNil` at the end of sequence (because not types but values)
-- `interpreter` is actually of type `Interpreter` which is just a wrapper around a `C ~> R`  where `C[_] <: CoproductK[_]`. If you want to access the underlying NaturalTransformation/FunctionK `PRG ~> Future`, just call `interpreter.nat`.
+- there is no equivalent to `NilDSL` at the end of sequence (because not types but values)
+- `interpreter` is actually of type `Interpreter` which is just a wrapper around a `C ~> R`  where `C[_] <: CopK[_]`. If you want to access the underlying NaturalTransformation/FunctionK `PRG ~> Future`, just call `interpreter.nat`.
 
 <br/>
 #### Execute your program using `interpret`
@@ -275,8 +288,8 @@ object DB {
 object DBService {
   import DB._
 
-  type PRG = Log.DSL :|: DB.DSL :|: FXNil
-  val PRG = Program[PRG]
+  type PRG = Log.DSL :|: DB.DSL :|: NilDSL
+  val PRG = DSL.Make[PRG]
 
   /** the program */
   // Here the type is indicated for doc but you can omit it, Scala can infer things
@@ -292,29 +305,31 @@ object DBService {
 <br/>
 #### Combine programs
 
-To combine an existing combination of DSL into a new program, use the operator `:||:` (2x`|`):
+
+To prepend one or more DSL to an existing combination of DSL into a new program, use the operator `:|:` also (in the same semantics as `+:` for `Seq`):
 
 ```scala
 
   type PRG = Log :|: KVS :|: File :|: DBService.PRG
-  val PRG = Program[PRG]
+  val PRG = DSL.Make[PRG]
 
   // Here the type is indicated for doc but you can omit it, Scala can infer things
   def program2(id: String): Free[PRG.Cop, File] = 
-  for {
-    _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
-    name  <- KVS.Get(id).freek[PRG]
-    e     <- DB.findById(id).freek[PRG]
-    file  <- File.Get(e.file).freek[PRG]
-    _     <- Log.debug(s"Found file:$file").freek[PRG]
-  } yield (file)
+    for {
+      _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
+      name  <- KVS.Get(id).freek[PRG]
+      e     <- DB.findById(id).freek[PRG]
+      file  <- File.Get(e.file).freek[PRG]
+      _     <- Log.debug(s"Found file:$file").freek[PRG]
+    } yield (file)
 
 ```
 
 Please note:
 
-- there is no `FXNil` at the end because it's brought by `DBService.PRG`
+- there is no `NilDSL` at the end because it's brought by `DBService.PRG`
 - `:|:` also appends a list of DSL at the end
+
 
 
 <br/>
@@ -335,14 +350,12 @@ val interpreter2 = DBInterpreter :&: KVSInterpreter :&: LogInterpreter :&: FileI
 val fut2 = program2.interpret(interpreter2) // this returns a Future[Unit]
 ```
 
-> `:&&:` operator that could merge 2 interpreters together doesn't exist but show come soon
-
 
 <br/>
 <br/>
 ### Manipulate Stack of result types
 
-Ok till now we have focused on the DSL/effect side F of `Free[F[_], A]`. We have nice tools to combine different effects/DSL and interpret them. But what about the result type?
+Ok till now we have focused on the DSL side F of `Free[F[_], A]`. We have nice tools to combine different DSL and interpret them. But what about the result type?
 
 In previous samples, we had simple return types in our DSL but this return type often represents the results of operations in your business logic including error types.
 
@@ -416,10 +429,10 @@ You can represent it using `Onion` facilty:
 type O = F :&: G :&: H :&: I :&: Bulb
 
 // then you could get the Stack again (but in general you don't need it)
-type Stack[A] = O#Build[A]
+type Stack[A] = O#Layers[A]
 ```
 
-_Bulb is just the terminator of the `Onion` stack (like FXNil for stack of effects/DSL)_
+_Bulb is just the terminator of the `Onion` stack (like NilDSL for combination of DSL)_
 
 
 Let's go back to our original program now and try type unification on every line:
@@ -445,7 +458,7 @@ Free[PRG.Cop, Xor[String, Option[A]]]
 
 // which is
 type O = Xor[String, ?] :&: Option :&: Bulb
-Free[PRG.Cop, O#Build]
+Free[PRG.Cop, O#Layers]
 ```
 
 As you can expect, that's not enough, you need something more to do what we want.
@@ -462,13 +475,13 @@ Freaky, isn't it? Don't worry, you don't have to see it most of the time like mo
 
 > Let's say loud that _`OnionT` is not a Monad Transformer_: is an Onion stack of monadic & traversable layers embedded as result type of a  monad `TC[F[_], ?]` (like `Free[F[_], ?]`).
 
-Finally, if you are able to lift all your `Free[PRG, Option[A] or Xor[String, A]]` to `OnionT[Free, PRG, O, A]`, victory!
+Finally, if you are able to lift all your `Free[PRG.Cop, Option[A] or Xor[String, A]]` to `OnionT[Free, PRG.Cop, O, A]`, victory!
 ... And you can do it with `.onionT[O]`
 
 Let's give an example of it:
 
 ```scala
-type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
+type PRG = Bar :|: Foo :|: Log.DSL :|: NilDSL
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 // Here the type is indicated for doc but you can omit it, Scala can infer things
@@ -507,7 +520,7 @@ Freek provides a shortcut called `freeko` that combines both calls in one single
 Here is your program with `freeko`:
 
 ```scala
-type PRG = Bar :|: Foo :|: Log.DSL :|: FXNil
+type PRG = Bar :|: Foo :|: Log.DSL :|: NilDSL
 type O = Xor[String, ?] :&: Option :&: Bulb
 
 // Here the type is indicated for doc but you can omit it, Scala can infer things
@@ -544,8 +557,8 @@ case class Delete(no: String) extends Repo[Xor[String, Unit]]
 
 // Repository local program
 object Repo {
-  type PRG = Repo :|: Log :|: FXNil
-  val PRG = Program[PRG]
+  type PRG = Repo :|: Log :|: NilDSL
+  val PRG = DSL.Make[PRG]
 
   type O = Xor[String, ?] :&: Bulb
 
@@ -572,13 +585,13 @@ sealed trait Bar[A]
 // Bar can use Repo sub-program too
 object Bar {
   type PRG = Bar :|: Log.DSL :|: Repo.PRG
-  val PRG = Program[PRG]
+  val PRG = DSL.Make[PRG]
 
   def subBar(...): Free[PRG.Cop, ...] = ...
 }
 ```
 
-You can see that `FXNil` isn't used in `Bar.PRG` and `Foo.PRG` because `:|:` prepends an element DSL to a (coproduct) sequence of DSL and `Repo.PRG` is already a (coproduct) sequence of DSL.
+You can see that `NilDSL` isn't used in `Bar.PRG` and `Foo.PRG` because `:|:` prepends an element DSL to a (coproduct) sequence of DSL and `Repo.PRG` is already a (coproduct) sequence of DSL.
 
 <br/>
 ##### Combine programs with `:||:`
@@ -588,7 +601,7 @@ type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
 // Combine all programs using :||:
 type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
-val PRG = Program[PRG]
+val PRG = DSL.Make[PRG]
 
 // Here the type is indicated for doc but you can omit it
 val prg: OnionT[Free, PRG.Cop, O, Int] = for {
@@ -606,16 +619,16 @@ To make the difference between `:|:` and `:||:`, please remind the following:
 
 
 <br/>
-#### Unstack results with `.peelRight`
+#### Unstack results with `.peelRight` / `.peelRight2` / `.peelRight3` 
 
 Sometimes, you have a Free returning an Onion `Xor[String, ?] :&: Option :&: Bulb` but you want to manipulate the hidden `Option[A]` in your program and not `A`.
 
-You can do that using `.dropRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Build[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
+You can do that using `.dropRight` that will unstack `Option` from the onion `Xor[String, ?] :&: Option :&: Bulb` and return a `(Xor[String, ?] :&: Bulb)#Layers[Option[A]]`. Then you have access to `Option[A]` but naturally, you have to lift all lines of the program to the same level.
 
 For example, you could do the following:
 
 ```scala
-val prg = for {
+val prg: OnionT[Free, PRG.Cop, Xor[String, ?] :&: Bulb, Option[A]] = for {
   iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
   i2    <-  iOpt match {
               case Some(i) => Foo2(i).freek[PRG].onionT[O].peelRight
@@ -625,8 +638,27 @@ val prg = for {
 }
 ```
 
-> there is also a `.prepend[F[_]]` that can prepend a F to an existing Onion O
+- If you need to peel 2 layers, use `.peelRight2`
 
+- If you need to peel 3 layers, use `.peelRight3`
+
+> there is also a `.wrap[F[_]]` that can wrap the existing Onion in `F[_]`
+
+<br/>
+#### Difference between `.onionT` and `.onion`
+
+- When you have a `Free[PRG.Cop, F[A]]` and want to lift info `OnionT[Free, PRG.Cop, O, A]` and Onion `O` contains `F[_]`, then use `Free[PRG.Cop, F[A]].onionT[O]`
+
+
+- When you have a `Free[PRG.Cop, F[A]]` into `OnionT[Free, PRG.Cop, O, F[A]]` (Onion `O` can contain `F[_]`), then use `Free[PRG.Cop, F[A]].onion[O]`
+
+#### `.onionT1` / `.onionT2` / `.onionT3`
+
+Instead of `Foo2(i).freek[PRG].onionT[O].peelRight`, you can write `Foo2(i).freek[PRG].onionT1[O]`
+
+Instead of `Foo2(i).freek[PRG].onionT[O].peelRight2`, you can write `Foo2(i).freek[PRG].onionT2[O]`
+
+Instead of `Foo2(i).freek[PRG].onionT[O].peelRight3`, you can write `Foo2(i).freek[PRG].onionT3[O]`
 
 <br/>
 <br/>
@@ -640,13 +672,13 @@ Free has a cost in terms of performance & short-term structures allocation but i
 
 We also believe current implementations can be improved progressively using theoretical and even more brutal tools like compiler plugin/optimizations. So we want to push those concepts further and further.
 
-In Cats & Scalaz, `Free[F[_], A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any effect/DSL `F[_]` in a `Free[F, A]`.
+In Cats & Scalaz, `Free[F[_], A]` representation has already been optimized into a right associated structure and now embeds Coyoneda trick removing the dependency on Functor. Now we can use any DSL `F[_]` in a `Free[F, A]`.
 
-Free is often associated to effects management and in this context, there are also interesting newer approaches in Scala world:
+Free is a generic way to manipulate DSL and convert them into computations and thus can be used to represent some sort of effects combination. But in this context, there are more specialized & interesting approaches in Scala world:
 
 - [Emm](https://github.com/djspiewak/emm) : A very clever idea to represent stack of effects and a nice implementation (from which a few ideas have been stolen for `freek`). It's interesting because it can use existing structures but it has many implicits meaning it has a cost at compile-time and a few questioning about its pure Monadic nature (TBD)...
 
-- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... Next step of evangelization ;)
+- [Scala Eff](http://atnos-org.github.io/eff-cats/): a more theoretical and deeply interesting implementation based on [Freer Monads, more extensible effects](http://okmij.org/ftp/Haskell/extensible/more.pdf)'s paper by Oleg Kiselyov & friends. It's the next-gen of effects management but it also requires more _aware developers_ certainly... Next step of evangelization ;)... Please note that Eric has recently introduced a model in Eff that got inspired by our latest compile-time optimized CopK model: that's the power of OSS ;)
 
 - [Idris Eff port](https://github.com/mandubian/scalaeff): this is my personal toy... In Idris, it's (almost) nice, in Scala, it's almost a monster and more an experiment showing it could work. But it's the _next-gen + 1/2/3/4_ IMHO so let's be patient and make it grow...
 

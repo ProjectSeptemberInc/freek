@@ -15,9 +15,9 @@ import scala.concurrent.duration._
 
 // import cats.derived._, functor._, legacy._
 import cats.Functor
-import cats.std.future._
-import cats.std.option._
-import cats.std.list._
+import cats.instances.future._
+import cats.instances.option._
+import cats.instances.list._
 import ExecutionContext.Implicits.global
 
 import freek._
@@ -152,14 +152,14 @@ class AppSpec extends FlatSpec with Matchers {
       import DB._
 
       // APP DEFINITION
-      // combine DSL in a higher-kinded coproduct
-      // Log.DSL :@: DB.DSL :@: FXNil builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
-      // FXNil corresponds to a higher-kinded CNil or no-effect combinator
+      // DSL.Make DSL in a higher-kinded coproduct
+      // Log.DSL :@: DB.DSL :@: NilDSL builds (A => Log.DSL[A] :+: DB.DSL[A] :+: CNilK[A])
+      // NilDSL corresponds to a higher-kinded CNil or no-effect combinator
       // without it, it's impossible to build to higher-kinded coproduct in a clea way
-      type PRG = Log.DSL :|: DB.DSL :|: FXNil
-      val PRG = Program[PRG]
+      type PRG = Log.DSL :|: DB.DSL :|: NilDSL
+      val PRG = DSL.Make[PRG]
 
-      /** the program */
+      /** the DSL.Make */
       def findById(id: String): Free[PRG.Cop, Xor[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id).freek[PRG]
@@ -173,10 +173,10 @@ class AppSpec extends FlatSpec with Matchers {
 
       /** Combining DSL in a type alias */
       type PRG = Log.DSL :|: HttpInteract :|: HttpHandle :|: DBService.PRG
-      val PRG = Program[PRG]
+      val PRG = DSL.Make[PRG]
 
       // Handle action
-      // :@@: combines a F[_] with an existing higher-kinded coproduct
+      // :@@: DSL.Makes a F[_] with an existing higher-kinded coproduct
       def handle(req: HttpReq): Free[PRG.Cop, HttpResp] = req.url match {
         case "/foo" =>
           for {
@@ -194,7 +194,7 @@ class AppSpec extends FlatSpec with Matchers {
         case _ => HttpHandle.result(HttpResp(status = InternalServerError)).freek[PRG]
       }
 
-      // server program
+      // server DSL.Make
       // this is the worst case: recursive call so need to help scalac a lot
       // but in classic cases, it should be much more straighforward
       def serve() : Free[PRG.Cop, Xor[RecvError, SendStatus]] =
@@ -260,17 +260,17 @@ class AppSpec extends FlatSpec with Matchers {
       }
     }
 
-    /** let's combine interpreters into a big interpreter
+    /** let's DSL.Make interpreters into a big interpreter
       * (F ~> R) :+: (G ~> R) => [t => F[t] :+: G[t] :+: CNilK[t]] ~> R
       */
     val interpreter = HttpInteraction :&: Logger :&: HttpHandler :&: DBManager
 
-    /** as we use a recursive program, we need to trampoline it in order to prevent stack overflow */
+    /** as we use a recursive DSL.Make, we need to trampoline it in order to prevent stack overflow */
     object Trampolined extends (cats.Id ~> Trampoline) {
       def apply[A](a: cats.Id[A]) = Trampoline.done(a)
     }
 
-    // execute final program as a simple free with combined interpreter composed with a trampoline
+    // execute final DSL.Make as a simple free with DSL.Maked interpreter composed with a trampoline
     HttpService.serve().interpret(interpreter andThen Trampolined).run
     println(HttpInteraction.i)
 
@@ -278,7 +278,7 @@ class AppSpec extends FlatSpec with Matchers {
 
 
   "freek" should "manage monad transformers" in {
-    import cats.std.future._
+    import cats.instances.future._
     import cats.data.OptionT
     import ExecutionContext.Implicits.global
     // import hk._
@@ -288,8 +288,8 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar2(i: Int) extends Foo[Xor[String, Int]]
     final case object Bar3 extends Foo[Unit]
 
-    type PRG = Foo :|: Log.DSL :|: FXNil
-    val PRG = Program[PRG]
+    type PRG = Foo :|: Log.DSL :|: NilDSL
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Bar("5").freek[PRG].liftT[Option].liftF[Xor[String, ?]]
@@ -321,9 +321,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -336,12 +336,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -381,10 +381,10 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "manage monadic onions of result types manipulating Option[A] using OnionP" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+  "freek" should "manage monadic onions of result types manipulating Option[A] using Onion" in {
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -397,23 +397,23 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
-      iOpt  <-  Foo1("5").freek[PRG].onionP[O]
+      iOpt  <-  Foo1("5").freek[PRG].onion[O]
       i2    <-  iOpt match {
                   case Some(i) => Foo2(i).freek[PRG].onionT[O]
                   case None => Foo2(0).freek[PRG].onionT[O]
                 }
       _     <-  Log.info("toto " + i2).freek[PRG].onionT[O]
       _     <-  Foo3.freek[PRG].onionT[O]
-      s     <-  Bar1(i2.toString).freek[PRG].onionP[O]
-      i3    <-  Foo4(i2).freek[PRG].onionP[O]
+      s     <-  Bar1(i2.toString).freek[PRG].onion[O]
+      i3    <-  Foo4(i2).freek[PRG].onion[O]
     } yield (i3)
 
     val logger2Future = new (Log.DSL ~> Future) {
@@ -446,9 +446,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types 3" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -461,12 +461,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       iOpt  <-  Foo1("5").freek[PRG].onionT[O].peelRight
@@ -513,9 +513,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions of result types with phantom types (upcasting)" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
 
@@ -533,12 +533,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: KVS[String, Int, ?] :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg = for {
       i     <- Foo1("5").freek[PRG].onionT[O]
@@ -598,12 +598,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[List[Option[String]]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val f: OnionT[Free, PRG.Cop, List :&: Xor[String, ?] :&: Bulb, Option[Int]] =
       Foo1("5")
@@ -615,9 +615,9 @@ class AppSpec extends FlatSpec with Matchers {
   }
 
   "freek" should "manage monadic onions with freeko" in {
-    import cats.std.future._
-    import cats.std.option._
-    import cats.std.list._
+    import cats.instances.future._
+    import cats.instances.option._
+    import cats.instances.list._
     import ExecutionContext.Implicits.global
 
     sealed trait Foo[A]
@@ -630,12 +630,12 @@ class AppSpec extends FlatSpec with Matchers {
     final case class Bar1(s: String) extends Bar[Option[String]]
     final case class Bar2(i: Int) extends Bar[Xor[String, String]]
 
-    type PRG2 = Bar :|: Log.DSL :|: FXNil
+    type PRG2 = Bar :|: Log.DSL :|: NilDSL
 
     type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
     type PRG = Foo :|: Log.DSL  :|: PRG2
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
     val prg: OnionT[Free, PRG.Cop, O, Int] = for {
       i     <- Foo1("5").freeko[PRG, O]
@@ -675,7 +675,7 @@ class AppSpec extends FlatSpec with Matchers {
   
   }
 
-  "freek" should "allow declaring local programs" in {
+  "freek" should "allow declaring local DSL.Makes" in {
     
     trait RepositoryLayer {
       sealed trait Account
@@ -688,7 +688,7 @@ class AppSpec extends FlatSpec with Matchers {
       case class Delete(no: String) extends Repo[Xor[String, Unit]]
 
       object Repo {
-        type PRG = Repo :|: FXNil
+        type PRG = Repo :|: NilDSL
         type O = Xor[String, ?] :&: Bulb
       }
 
@@ -734,7 +734,7 @@ class AppSpec extends FlatSpec with Matchers {
       type O = List :&: Xor[String, ?] :&: Option :&: Bulb
 
       type PRG = Log.DSL :|: Bar.PRG :||: Foo.PRG
-      val PRG = Program[PRG]
+      val PRG = DSL.Make[PRG]
 
       val prg: OnionT[Free, PRG.Cop, O, Int] = for {
         i     <- Foo1("5").freeko[PRG, O]
@@ -781,6 +781,199 @@ class AppSpec extends FlatSpec with Matchers {
     }
     val r = Await.result(Prg.prg.value.interpret(Prg.interpreters), 10.seconds)
     println("result:"+r)
+  }
+
+
+  "freek" should "special cases" in {
+    sealed trait Foo[A]
+    final case class Foo1(s: String) extends Foo[List[String]]
+
+    sealed trait Bar[A]
+    final case class Bar1(s: String) extends Bar[Option[String]]
+
+    sealed trait KVS[K, V, E]
+    case class Get[K, V](key: K) extends KVS[K, V, Option[V]]
+    case class Put[K, V](key: K, value: V) extends KVS[K, V, Unit]
+
+    type KVSA[A] = KVS[String, Int, A]
+    type PRG = KVSA :|: KVS[Float, Double, ?] :|: Foo :|: Bar :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Option :&: Bulb
+
+    val f1 = for {
+      _ <- Bar1("bar1").freek[PRG].onionT[O]
+      _ <- Foo1("foo1").freek[PRG].onion[O]
+    } yield (())
+
+    val f2: Free[PRG.Cop, Option[Int]] = for {
+      i <- Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
+    } yield (i)
+
+    val f3: Free[PRG.Cop, Option[Int]] = Get[String, Int]("toto").upcast[KVSA[Option[Int]]].freek[PRG]
+  }
+
+  "freek" should "special cases 2" in {
+    sealed trait Foo1[A]
+    final case class Bar1(s: Int) extends Foo1[List[Int]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo2[Option[Int]]
+    final case class Bar22(s: Int) extends Foo2[List[Option[Int]]]
+
+    sealed trait Foo3[A]
+    final case class Bar31(s: Long) extends Foo3[Xor[String, Long]]
+    final case class Bar32(s: Float) extends Foo3[Xor[String, List[Float]]]
+    final case class Bar33(s: Double) extends Foo3[Xor[String, Option[Boolean]]]
+    
+    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: List :&: Option :&: Bulb
+
+    val f1: Free[PRG.Cop, Xor[String, List[Option[Unit]]]] = (for {
+      i <- Bar1(3).freek[PRG].onionT[O]
+      i <- Bar21(i).freek[PRG].onionT[O]
+      i <- Bar22(i).freek[PRG].onionT[O]
+      l <- Bar31(i.toLong).freek[PRG].onionT[O]
+      l <- Bar32(l.toFloat).freek[PRG].onionT[O]
+      _ <- Bar33(l.toDouble).freek[PRG].onionT[O]
+    } yield (())).value
+
+  }
+
+  "freek" should "special cases 3" in {
+    sealed trait Foo1[A]
+    final case class Bar1(s: Int) extends Foo1[List[Int]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo2[Option[Int]]
+    final case class Bar22(s: Int) extends Foo2[List[Option[Int]]]
+
+    sealed trait Foo3[A]
+    final case class Bar31(s: Int) extends Foo3[Xor[String, Long]]
+    final case class Bar32(s: Float) extends Foo3[Xor[String, List[Float]]]
+    final case class Bar33(s: Double) extends Foo3[Xor[String, Option[Boolean]]]
+    final case class Bar34(s: Double) extends Foo3[Xor[String, List[Option[Boolean]]]]
+    
+    type PRG = Foo1 :|: Foo2 :|: Foo3 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: List :&: Option :&: Bulb
+
+    // ugly head & get :D
+    val f1: Free[PRG.Cop, Xor[String, String]] = (for {
+      i   <- Bar1(3).freek[PRG].onionT2[O]
+      i   <- Bar21(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar22(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar31(i.head.get).freek[PRG].onionT2[O]
+      i   <- Bar32(i.head.get.toFloat).freek[PRG].onionT2[O]
+      i   <- Bar33(i.head.get.toDouble).freek[PRG].onionT2[O]
+    } yield (i.toString)).value
+
+  }
+
+  "freek" should "special cases 4" in {
+    sealed trait Foo1[A]
+    final case class Bar11(s: Int) extends Foo1[Xor[String, List[Int]]]
+    final case class Bar12(s: List[Int]) extends Foo1[Xor[String, Option[Int]]]
+
+    sealed trait Foo2[A]
+    final case class Bar21(s: Int) extends Foo1[Xor[Long, Option[List[Int]]]]
+    final case class Bar22(s: List[Int]) extends Foo1[Xor[Long, Option[Int]]]
+
+    type PRG = Foo1 :|: Foo2 :|: NilDSL
+    val PRG = DSL.Make[PRG]
+    type O = Xor[String, ?] :&: Xor[Long, ?] :&: Option :&: Bulb
+
+    val f1: OnionT[Free, PRG.Cop, O, Unit] = for {
+      l1 <- Bar11(5).freek[PRG].onionX1[O]
+      _  <- Bar12(l1).freek[PRG].onionT[O]
+      l2 <- Bar21(6).freek[PRG].onionX2[O]
+      _  <- Bar22(l2).freek[PRG].onionT[O]
+    } yield (())
+
+  }
+
+  "freek" should "transpile" in {
+    object Program {
+      sealed trait Foo1[A]
+      final case class Bar11(s: Int) extends Foo1[Int]
+
+      sealed trait Foo2[A]
+      final case class Bar21(s: String) extends Foo2[String]
+
+      type PRG = Foo1 :|: Foo2 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      val program = for {
+        _ <- Bar11(5).freek[PRG]
+        _ <- Bar21("1.234").freek[PRG]
+      } yield (())
+    }
+
+    object OtherProgram {
+
+      sealed trait Foo3[A]
+      final case class Bar31(s: String) extends Foo3[Float]
+
+      sealed trait Foo4[A]
+      final case class Bar41(s: Float) extends Foo4[String]
+
+      type PRG = Foo3 :|: Foo4 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      // this is our transpiler transforming a Foo2 into another free program
+      val transpiler = new (Program.Foo2 ~> Free[PRG.Cop, ?]) {
+
+        def apply[A](f: Program.Foo2[A]): Free[PRG.Cop, A] = f match {
+          case Program.Bar21(s) =>
+            for {
+             f <- Bar31(s).freek[PRG]
+             s <- Bar41(f).freek[PRG]
+            } yield (s)
+        }
+      }
+    }
+
+    import Program._
+    import OtherProgram._
+
+    // 1/ CopKNat[Program.PRG.Cop] creates a Program.PRG.Cop ~> Program.PRG.Cop
+    // 2/ .replace creates a natural trans that replaces Program.Foo2 in Program.PRG.Cop by Free[OtherProgram.PRG.Cop, ?] using transpiler
+    // 3/ The result is a terrible natural transformation (don't try to write that type, it's too ugly, let's scalac do it) :
+    //    (Foo1 :|: Foo2 :|: NilDSL) ~> (Foo1 :|: Free[OtherProgram.PRG.Cop, ?] :|: NilDSL)
+    val transpileNat = CopKNat[Program.PRG.Cop].replace(OtherProgram.transpiler)
+
+    // Transpile does 2 operations:
+    // 1/ Replaces Foo2 in Program.PRG.Cop by Free[OtherProgram.PRG.Cop, A]
+    //    -> OtherProgram.transpiler natural transformation converts Foo2 into the free program Free[OtherProgram.PRG.Cop, A]
+    //    -> New PRG.Cop is then Foo1 :|: Free[OtherProgram.PRG.Cop, ?] :|: NilDSL
+    //
+    // 2/ Flattens Free[(Foo1 :|: Free[(Foo3 :|: Foo4 :|: NilDSL)#Cop, ?] :|: NilDSL)#Cop, A] into
+    //    Free[(Foo1 :|: Foo3 :|: Foo4 :|: NilDSL)#Cop, A]
+    val free = Program.program.transpile(transpileNat)
+    // Same as
+    // val free2 = Program.f.compile(transpileNat).flatten
+
+    // Write our interpreters for new program (Foo1, Foo3, Foo4)
+    val foo1Future = new (Foo1 ~> Future) {
+      def apply[A](a: Foo1[A]) = a match {
+        case Bar11(i) => Future { i }
+      }
+    }
+
+    val foo3Future = new (Foo3 ~> Future) {
+      def apply[A](a: Foo3[A]) = a match {
+        case Bar31(s) => Future { s.toFloat }
+      }
+    }
+
+    val foo4Future = new (Foo4 ~> Future) {
+      def apply[A](a: Foo4[A]) = a match {
+        case Bar41(s) => Future { s.toString }
+      }
+    }
+
+    val r = Await.result(free.interpret(foo1Future :&: foo3Future :&: foo4Future), 2.seconds)
+    println("r:"+r)
   }
 
 }
