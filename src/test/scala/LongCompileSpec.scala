@@ -15,9 +15,9 @@ import scala.concurrent.duration._
 
 // import cats.derived._, functor._, legacy._
 import cats.Functor
-import cats.std.future._
-import cats.std.option._
-import cats.std.list._
+import cats.instances.future._
+import cats.instances.option._
+import cats.instances.list._
 import ExecutionContext.Implicits.global
 
 import freek._
@@ -58,9 +58,9 @@ class LongCompileSpec extends FlatSpec with Matchers {
     type PRG =
       Foo1 :|: Foo2 :|: Foo3 :|: Foo4 :|: Foo5 :|: Foo6 :|: Foo7 :|: Foo8 :|: Foo9 :|: Foo10 :|: 
       Foo11 :|: Foo12 :|: Foo13 :|: Foo14 :|: Foo15 :|: Foo16 :|: Foo17 :|: Foo18 :|: Foo19 :|: Foo20 :|:
-      FXNil
+      NilDSL
 
-    val PRG = Program[PRG]
+    val PRG = DSL.Make[PRG]
 
 
     val prg: Free[PRG.Cop, Int] = for {

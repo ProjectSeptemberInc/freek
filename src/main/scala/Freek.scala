@@ -4,19 +4,23 @@ import cats.free.Free
 import cats.{Functor, ~>, Monad}
 
 
-/** Just some helpers to enhance Free with CoproductK */
+/** Just some helpers to enhance Free with CopK */
 object Freek {
 
   def apply[F[_], A](fa: F[A]): Free[In1[F, ?], A] = {
     Free.liftF(In1(fa))
   }
 
-  def expand[F[_] <: CoproductK[_], Super[_] <: CoproductK[_], A](free: Free[F, A])(
+  def expand[F[_] <: CopK[_], Super[_] <: CopK[_], A](free: Free[F, A])(
     implicit sub: SubCop[F, Super]
-  ): Free[Super, A] = free.mapSuspension(
+  ): Free[Super, A] = free.compile(
     new (F ~> Super) {
       def apply[A](ga: F[A]): Super[A] = sub(ga)
     }
   )
+
+  // def flatten[F[_] <: CopK[_]](free: Free[F, A])(
+  //   implicit flt: Flattener[F]
+  // ): Free[flt.Out, A]
 
 }
