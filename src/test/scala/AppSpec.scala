@@ -892,6 +892,75 @@ class AppSpec extends FlatSpec with Matchers {
 
   }
 
+  "freek" should "extend DSL" in {
+    object Program {
+      sealed trait Foo1[A]
+      final case class Bar11(s: Int) extends Foo1[String]
+
+      sealed trait Foo2[A]
+      final case class Bar21(s: String) extends Foo2[Int]
+
+      type PRG = Foo1 :|: Foo2 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      val program = for {
+        s <- Bar11(5).freek[PRG]
+        i <- Bar21(s).freek[PRG]
+      } yield (i)
+    }
+
+    object OtherProgram {
+      import Program._
+      
+      sealed trait Foo3[A]
+      case class Bar31[A](bar11: Foo1[A]) extends Foo3[A]
+      case class Bar32(i: Int) extends Foo3[String]
+
+      type PRG = Foo3 :|: Foo2 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      val copknat = CopKNat[Program.PRG.Cop].replace(
+        new (Foo1 ~> Foo3) {
+          def apply[A](foo1: Foo1[A]): Foo3[A] = Bar31(foo1)
+        }
+      )
+
+      val program = for {
+        i <- Program.program.compile(copknat)
+        s <- Bar32(i).freek[PRG]
+      } yield (s)
+
+    }
+
+    import Program._
+    import OtherProgram._
+
+    val foo1Future = new (Foo1 ~> Future) {
+      def apply[A](a: Foo1[A]) = a match {
+        case Bar11(i) => Future { i.toString }
+      }
+    }
+
+    val foo2Future = new (Foo2 ~> Future) {
+      def apply[A](a: Foo2[A]) = a match {
+        case Bar21(s) => Future { s.toInt }
+      }
+    }
+
+    def foo3Future(foo1Nat: Foo1 ~> Future) = new (Foo3 ~> Future) {
+      def apply[A](a: Foo3[A]) = a match {
+        case Bar31(foo1) => foo1Nat(foo1)
+        case Bar32(i) => Future { i.toString }
+      }
+    }
+
+    val interpreter = foo2Future :&: foo3Future(foo1Future)
+
+    val fut = OtherProgram.program.interpret(interpreter)
+
+    ()
+  } 
+
   "freek" should "transpile" in {
     object Program {
       sealed trait Foo1[A]
