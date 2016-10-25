@@ -13,11 +13,11 @@ lazy val commonSettings = Seq(
   , addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.7.1")
   // , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   , libraryDependencies ++= Seq(
-      "org.typelevel"   %% "cats"               % "0.7.0"
-    , "com.milessabin"  % "si2712fix-library"   % "1.2.0"             cross CrossVersion.full
-    , "org.scalatest"   %  "scalatest_2.11"     % "3.0.0"             % "test"
-    , "org.typelevel"   %% "discipline"         % "0.4"               % "test"
-    , "org.typelevel"   %% "cats-laws"          % "0.6.1"
+      "org.typelevel"   %%  "cats-free"           % "0.7.0"
+    , "com.milessabin"  %   "si2712fix-library"   % "1.2.0"             cross CrossVersion.full
+    , "org.scalatest"   %   "scalatest_2.11"      % "3.0.0"             % "test"
+    // , "org.typelevel"   %% "discipline"         % "0.4"               % "test"
+    // , "org.typelevel"   %% "cats-laws"          % "0.6.1"
     // , "org.scala-lang"  % "scala-reflect"       % scalaVersion.value  % "provided"
     )
 
