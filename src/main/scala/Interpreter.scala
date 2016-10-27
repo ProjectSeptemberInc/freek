@@ -22,6 +22,15 @@ class Interpreter[C[_] <: CopK[_], R[_]](
   //   // TBD
   // )
 
+  def :&&:[D[_] <: CopK[_]](f: Interpreter[D, R]): Interpreter[AppendK[C, D, ?], R] = new Interpreter(
+    new ~>[AppendK[C, D, ?], R] {
+      def apply[A](c: AppendK[C, D, A]): R[A] = c match {
+        case Aplk(l) => nat.nat(l)
+        case Aprk(r) => f.nat(r)
+      }
+    }
+  )
+
   def andThen[R2[_]](r2: R ~> R2): Interpreter[C, R2]  = new Interpreter(
     nat andThen r2
   )

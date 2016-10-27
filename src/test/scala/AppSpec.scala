@@ -777,10 +777,16 @@ class AppSpec extends FlatSpec with Matchers {
         }
       }
 
+      val fooInterpreters = foo2Future :&: logger2Future :&: repo2Future
+      val barInterpreters = bar2Future :&: logger2Future :&: repo2Future
+
       val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: repo2Future
+      val interpreters2 = logger2Future :&: fooInterpreters :&&: barInterpreters
     }
     val r = Await.result(Prg.prg.value.interpret(Prg.interpreters), 10.seconds)
     println("result:"+r)
+    val r2 = Await.result(Prg.prg.value.interpret(Prg.interpreters2), 10.seconds)
+    println("result:"+r2)
   }
 
 
