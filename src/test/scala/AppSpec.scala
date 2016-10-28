@@ -965,7 +965,76 @@ class AppSpec extends FlatSpec with Matchers {
     val fut = OtherProgram.program.interpret(interpreter)
 
     ()
-  } 
+  }
+
+  "freek" should "append DSL" in {
+    object Program {
+      sealed trait Foo1[A]
+      final case class Bar11(s: Int) extends Foo1[String]
+
+      sealed trait Foo2[A]
+      final case class Bar21(s: String) extends Foo2[Int]
+
+      type PRG = Foo1 :|: Foo2 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      val program = for {
+        s <- Bar11(5).freek[PRG]
+        i <- Bar21(s).freek[PRG]
+      } yield (i)
+    }
+
+    object OtherProgram {
+      import Program._
+      
+      sealed trait Foo3[A]
+      case class Bar31[A](bar11: Foo1[A]) extends Foo3[A]
+      case class Bar32(i: Int) extends Foo3[String]
+
+      type PRG = Foo3 :|: Foo2 :|: NilDSL
+      val PRG = DSL.Make[PRG]
+
+      val copknat = CopKNat[Program.PRG.Cop].replace(
+        new (Foo1 ~> Foo3) {
+          def apply[A](foo1: Foo1[A]): Foo3[A] = Bar31(foo1)
+        }
+      )
+
+      val program = for {
+        i <- Program.program.compile(copknat)
+        s <- Bar32(i).freek[PRG]
+      } yield (s)
+
+    }
+
+    import Program._
+    import OtherProgram._
+
+    val foo1Future = new (Foo1 ~> Future) {
+      def apply[A](a: Foo1[A]) = a match {
+        case Bar11(i) => Future { i.toString }
+      }
+    }
+
+    val foo2Future = new (Foo2 ~> Future) {
+      def apply[A](a: Foo2[A]) = a match {
+        case Bar21(s) => Future { s.toInt }
+      }
+    }
+
+    def foo3Future(foo1Nat: Foo1 ~> Future) = new (Foo3 ~> Future) {
+      def apply[A](a: Foo3[A]) = a match {
+        case Bar31(foo1) => foo1Nat(foo1)
+        case Bar32(i) => Future { i.toString }
+      }
+    }
+
+    val interpreter = foo2Future :&: foo3Future(foo1Future)
+
+    val fut = OtherProgram.program.interpret(interpreter)
+
+    ()
+  }
 
   "freek" should "transpile" in {
     object Program {
@@ -1050,6 +1119,54 @@ class AppSpec extends FlatSpec with Matchers {
     val r = Await.result(free.interpret(foo1Future :&: foo3Future :&: foo4Future), 2.seconds)
     println("r:"+r)
   }
+
+  // "freek" should "special case" in {
+  //   import java.io.File
+
+  //   sealed trait KVS[A]
+  //   object KVS {
+  //    case class Get(key: String) extends KVS[String]
+  //    case class Put(key: String, value: String) extends KVS[Unit]
+  //   }
+
+  //   sealed trait FileIO[A]
+  //   object FileIO {
+  //    case class Get(name: String) extends FileIO[File]
+  //    case class Delete(name: String) extends FileIO[Unit]
+  //   }
+
+  //   val FileInterpreter = new (FileIO ~> Lambda[A => Future[Xor[Exception, A]]]) {
+  //     override def apply[A](fa: FileIO[A]): Future[Xor[Exception, A]] = fa match {
+  //       case FileIO.Get(name) =>
+  //         Future {
+  //           Xor.right(new File(name))
+  //         }
+
+  //       case FileIO.Delete(name) =>
+  //         Future {
+  //           new File(name).delete()
+  //           Xor.right(())
+  //         }
+  //     }
+  //   }
+
+  //   val KVSInterpreter = new (KVS ~> Lambda[A => Future[Xor[Exception, A]]]) {
+  //    def apply[A](a: KVS[A]): Future[Xor[Exception, A]] = a match {
+  //     case KVS.Get(id) =>
+  //      Future {
+  //        Xor.right("123")
+  //      }
+  //     case KVS.Put(id, value) =>
+  //      Future {
+  //        Xor.right(())
+  //      }
+  //    }
+  //   }
+
+
+  //   val interpreter = KVSInterpreter :&: toInterpreter(FileInterpreter)
+
+  // }
 
 }
 

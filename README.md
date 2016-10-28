@@ -14,6 +14,13 @@
 > All versions are published to bintray https://bintray.com/projectseptemberinc/
 
 <br/>
+### v0.6.1:
+
+- added `Freekit`/`Freekito` helpers to reduce `.freek` boilerplate in basic cases
+- added `transpile` to flatten Free programs combining Free programs
+- added `:&&:` operator to combine group of interpreters
+
+<br/>
 ### v0.6.0:
 
 - renamed `FX` to `DSL` and `NilDSL` to `NilDSL` to represent better the fact that freek is more general than effects and about manipulating any DSL.
@@ -617,6 +624,17 @@ To make the difference between `:|:` and `:||:`, please remind the following:
 
 - `:||:` is like operator `++` for Scala `Seq`, it appends 2 (coproduct) sequences of DSL.
 
+<br/>
+#### Combine group of interpreters with `:&&:`
+
+```scala
+val fooInterpreters = barInterpreter :&: logInterpreter :|: repoInterpreter
+val barInterpreters = fooInterpreter :&: logInterpreter :|: repoInterpreter
+
+val interpreters = fooInterpreters :&&: barInterpreters
+```
+
+- `:&&:` is like operator `++` for Scala `Seq`, it appends 2 sequences of interpreters.
 
 <br/>
 #### Unstack results with `.peelRight` / `.peelRight2` / `.peelRight3` 
@@ -659,6 +677,57 @@ Instead of `Foo2(i).freek[PRG].onionT[O].peelRight`, you can write `Foo2(i).free
 Instead of `Foo2(i).freek[PRG].onionT[O].peelRight2`, you can write `Foo2(i).freek[PRG].onionT2[O]`
 
 Instead of `Foo2(i).freek[PRG].onionT[O].peelRight3`, you can write `Foo2(i).freek[PRG].onionT3[O]`
+
+<br/>
+#### Bored adding `.free[PRG]` on each line? Use `Freekit` trick
+
+```
+type PRG = Foo1 :|: Foo2 :|: Log :|: NilDSL
+val PRG = DSL.Make[PRG]
+
+// remark that you pass the value PRG here
+object M extends Freekit(PRG) {
+  val prg = for {
+    aOpt <- Foo1.Bar1(7)
+    _    <- Log.Info(s"aOpt:$aOpt")
+    a    <- aOpt match {
+      case Some(a)  =>  for {
+                          a <- Foo2.Bar21(a)
+                          _ <- Log.Info(s"a1:$a")
+                        } yield (a)
+      case None     =>  for {
+                          a <- Foo2.Bar22
+                          _ <- Log.Info(s"a2:$a")
+                        } yield (a)
+    }
+  } yield (a)
+}
+```
+
+This works in basic cases & naturally as soon as you have embedded `for-comprehension`, scalac inference makes it less efficient.
+
+<br/>
+#### Bored adding `.free[PRG].onionT[O]` on each line? Use `Freekito` trick
+
+```
+type PRG = Foo1 :|: Foo2 :|: Log :|: NilDSL
+val PRG = DSL.Make[PRG]
+
+// remark that you pass the value PRG here
+object MO extends Freekito(PRG) {
+  // you need to create this type O to reify the Onion
+  type O = Option :&: Bulb 
+
+  val prg = for {
+    a    <- Foo1.Bar1(7)
+    _    <- Log.Info(s"a:$a")
+    a    <- Foo2.Bar21(a)
+  } yield (a)
+}
+```
+
+This works in basic cases & naturally as soon as you have embedded `for-comprehension`, scalac inference makes it less efficient.
+
 
 <br/>
 <br/>
