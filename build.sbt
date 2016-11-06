@@ -31,21 +31,20 @@ lazy val root = (project in file("."))
   )
   .settings(
     libraryDependencies <<= (scalaVersion, libraryDependencies) { (ver, deps) =>
-    deps ++ (
-      CrossVersion.partialVersion(ver) match {
-        case Some((2, scalaMajor)) if scalaMajor == 11 =>
-          Seq(
-            "org.typelevel"   %%  "cats-free"  % "0.8.0"
-          , "org.scalatest"   %   "scalatest_2.11"      % "3.0.0"             % "test"
-          , compilerPlugin("com.milessabin"   % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full)
-          )
-        case Some((2, scalaMajor)) if scalaMajor == 12 =>
-          Seq(
-            "org.typelevel"   %  "cats-free_2.12.0-RC2"  % "0.8.0"
-          , "org.scalatest"   %   "scalatest_2.12"       % "3.0.0"             % "test"
-          )
-      }
-    )
-  }
-
+      deps ++ (
+        CrossVersion.partialVersion(ver) match {
+          case Some((2, scalaMajor)) if scalaMajor == 11 =>
+            Seq(
+              "org.typelevel"   %%  "cats-free"  % "0.8.0"
+            , "org.scalatest"   %   "scalatest_2.11"      % "3.0.0"             % "test"
+            , compilerPlugin("com.milessabin"   % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full)
+            )
+          case Some((2, scalaMajor)) if scalaMajor == 12 =>
+            Seq(
+              "org.typelevel"   %  "cats-free_2.12.0-RC2"  % "0.8.0"
+            , "org.scalatest"   %   "scalatest_2.12"       % "3.0.0"             % "test"
+            )
+        }
+      )
+    }
   )

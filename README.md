@@ -14,6 +14,13 @@
 > All versions are published to bintray https://bintray.com/projectseptemberinc/
 
 <br/>
+### v0.6.5:
+
+- first scala 2.12 support
+- cross-compiling 2.11.8 & 2.12
+- depends on cats 0.8.0
+
+<br/>
 ### v0.6.1/2:
 
 - added `Freekit`/`Freekito` helpers to reduce `.freek` boilerplate in basic cases
