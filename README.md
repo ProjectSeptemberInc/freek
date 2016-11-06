@@ -91,14 +91,12 @@ Freek is just a few helpers & tricks to make it straightforward to manipulate Fr
 ```
 # in build.sbt
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.0" // (or 2.11.8)
 
 resolvers += Resolver.bintrayRepo("projectseptemberinc", "maven")
 
 libraryDependencies ++= Seq(
-  "com.projectseptember"            %% "freek"                        % "0.6.0" // with cats-0.7.0
-//  "com.projectseptember"          %% "freek"                        % "0.6.0_cats-0.4.1" // with cats-0.4.1
-//  "com.projectseptember"          %% "freek"                        % "0.6.0_cats-0.6.1" // with cats-0.6.1
+  "com.projectseptember"            %% "freek"                        % "0.6.5"
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
 , "com.milessabin"                  %% "si2712fix-plugin"             % "1.2.0"
 )
