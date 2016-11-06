@@ -1,34 +1,51 @@
 lazy val commonSettings = Seq(
     organization := "com.projectseptember"
-  , version := "0.6.2"
+  , version := "0.6.5"
   , resolvers ++= Seq(
       Resolver.mavenLocal
     , Resolver.sonatypeRepo("releases")
     , Resolver.sonatypeRepo("snapshots")
     )
   , scalaVersion := "2.11.8"
+  , crossScalaVersions := Seq("2.11.8", "2.12.0")
   , bintrayOrganization := Some("projectseptemberinc")
   , licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-  , addCompilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full)
-  , addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.7.1")
-  // , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-  , libraryDependencies ++= Seq(
-      "org.typelevel"   %%  "cats-free"           % "0.7.0"
-    , "com.milessabin"  %   "si2712fix-library"   % "1.2.0"             cross CrossVersion.full
-    , "org.scalatest"   %   "scalatest_2.11"      % "3.0.0"             % "test"
-    // , "org.typelevel"   %% "discipline"         % "0.4"               % "test"
-    // , "org.typelevel"   %% "cats-laws"          % "0.6.1"
-    // , "org.scala-lang"  % "scala-reflect"       % scalaVersion.value  % "provided"
-    )
-
+  , addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.9.3" cross CrossVersion.binary)
 )
 
-lazy val root = (project in file(".")).
-  settings(commonSettings: _*).
-  settings(
+def scalacOptionsVersion(scalaVersion: String) = {
+  Seq(
+    "-feature"
+  , "-language:higherKinds"
+  ) ++ (CrossVersion.partialVersion(scalaVersion) match {
+         case Some((2, scalaMajor)) if scalaMajor == 12 => Seq("-Ypartial-unification")
+         case _ => Seq()
+       })
+}
+
+lazy val root = (project in file("."))
+  .settings(commonSettings: _*)
+  .settings(
     name := "freek",
-    scalacOptions ++= Seq(
-      "-feature"
-    , "-language:higherKinds"
+    scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
+  )
+  .settings(
+    libraryDependencies <<= (scalaVersion, libraryDependencies) { (ver, deps) =>
+    deps ++ (
+      CrossVersion.partialVersion(ver) match {
+        case Some((2, scalaMajor)) if scalaMajor == 11 =>
+          Seq(
+            "org.typelevel"   %%  "cats-free"  % "0.8.0"
+          , "org.scalatest"   %   "scalatest_2.11"      % "3.0.0"             % "test"
+          , compilerPlugin("com.milessabin"   % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full)
+          )
+        case Some((2, scalaMajor)) if scalaMajor == 12 =>
+          Seq(
+            "org.typelevel"   %  "cats-free_2.12.0-RC2"  % "0.8.0"
+          , "org.scalatest"   %   "scalatest_2.12"       % "3.0.0"             % "test"
+          )
+      }
     )
+  }
+
   )

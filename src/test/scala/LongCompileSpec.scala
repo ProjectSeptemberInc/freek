@@ -7,7 +7,6 @@ package freek
 import org.scalatest._
 
 import cats.free.{Free, Trampoline}
-import cats.data.Xor
 import cats.{~>, Id}
 
 import scala.concurrent._
@@ -18,6 +17,7 @@ import cats.Functor
 import cats.instances.future._
 import cats.instances.option._
 import cats.instances.list._
+import cats.instances.either._
 import ExecutionContext.Implicits.global
 
 import freek._

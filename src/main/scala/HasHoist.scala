@@ -2,7 +2,7 @@ package freek
 
 import scala.language.higherKinds
 
-import cats.data.{ OptionT, XorT, Xor }
+import cats.data.{ OptionT, EitherT }
 import cats.Functor
 import cats.free._
 
@@ -13,10 +13,10 @@ trait HasHoist[M[_]] {
   def liftF[F[_] : Functor, A](f: F[A]): T[F, A]
 }
 
-class XorHasHoist[A] extends HasHoist[λ[t => Xor[A, t]]] {
-  type T[F[_], B] = XorT[F, A, B]
-  def liftT[F[_], B](f: F[Xor[A, B]]): XorT[F, A, B] = XorT.apply(f)
-  def liftF[F[_] : Functor, B](f: F[B]): XorT[F, A, B] = XorT.right(f)
+class EitherHasHoist[A] extends HasHoist[λ[t => Either[A, t]]] {
+  type T[F[_], B] = EitherT[F, A, B]
+  def liftT[F[_], B](f: F[Either[A, B]]): EitherT[F, A, B] = EitherT.apply(f)
+  def liftF[F[_] : Functor, B](f: F[B]): EitherT[F, A, B] = EitherT.right(f)
 }
 
 object HasHoist {
@@ -30,8 +30,8 @@ object HasHoist {
     def liftF[F[_] : Functor, B](f: F[B]): OptionT[F, B] = OptionT.liftF(f)
   }
 
-  implicit def xorHasHoist[A]: HasHoist.Aux[λ[t => Xor[A, t]], λ[(f[_], b) => XorT[f, A, b]]] =
-    new XorHasHoist[A]
+  implicit def eitherHasHoist[A]: HasHoist.Aux[λ[t => Either[A, t]], λ[(f[_], b) => EitherT[f, A, b]]] =
+    new EitherHasHoist[A]
 
 }
 

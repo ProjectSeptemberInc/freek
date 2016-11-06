@@ -7,7 +7,6 @@ package freek
 import org.scalatest._
 
 import cats.free.{Free, Trampoline}
-import cats.data.Xor
 import cats.{~>, Id}
 
 import scala.concurrent._
@@ -18,6 +17,7 @@ import cats.Functor
 import cats.instances.future._
 import cats.instances.option._
 import cats.instances.list._
+import cats.instances.either._
 import ExecutionContext.Implicits.global
 
 import freek._
@@ -112,18 +112,18 @@ class FreekitSpec extends FlatSpec with Matchers {
 
   "Freekit" should "special cases 4" in {
     sealed trait Foo1[A]
-    final case class Bar11(s: Int) extends Foo1[Xor[String, List[Int]]]
-    final case class Bar12(s: List[Int]) extends Foo1[Xor[String, Option[Int]]]
+    final case class Bar11(s: Int) extends Foo1[Either[String, List[Int]]]
+    final case class Bar12(s: List[Int]) extends Foo1[Either[String, Option[Int]]]
 
     sealed trait Foo2[A]
-    final case class Bar21(s: Int) extends Foo1[Xor[Long, Option[List[Int]]]]
-    final case class Bar22(s: List[Int]) extends Foo1[Xor[Long, Option[Int]]]
+    final case class Bar21(s: Int) extends Foo1[Either[Long, Option[List[Int]]]]
+    final case class Bar22(s: List[Int]) extends Foo1[Either[Long, Option[Int]]]
 
     type PRG = Foo1 :|: Foo2 :|: NilDSL
     val PRG = DSL.Make[PRG]
 
     object F1 extends Freekito(PRG) {
-      type O = Xor[String, ?] :&: Xor[Long, ?] :&: Option :&: Bulb
+      type O = Either[String, ?] :&: Either[Long, ?] :&: Option :&: Bulb
 
       val prg = for {
         l1 <- Bar11(5).freek[PRG].onionX1[O]
@@ -141,7 +141,7 @@ class FreekitSpec extends FlatSpec with Matchers {
     object DBService extends Freekit(DSL.Make[Log.DSL :|: DB.DSL :|: NilDSL]) {
 
       /** the DSL.Make */
-      def findById(id: String): Free[PRG.Cop, Xor[DBError, Entity]] =
+      def findById(id: String): Free[PRG.Cop, Either[DBError, Entity]] =
         for {
           _    <- Log.debug("Searching for entity id:"+id)
           res  <- FindById(id)
@@ -159,8 +159,8 @@ class FreekitSpec extends FlatSpec with Matchers {
 
             resp  <-  HttpHandle.result(
                         dbRes match {
-                          case Xor.Left(err) => HttpResp(status = InternalServerError)
-                          case Xor.Right(e)   => HttpResp(status = Ok, body = e.toString)
+                          case Left(err) => HttpResp(status = InternalServerError)
+                          case Right(e)   => HttpResp(status = Ok, body = e.toString)
                         }
                       )
           } yield (resp)
@@ -168,20 +168,20 @@ class FreekitSpec extends FlatSpec with Matchers {
         case _ => HttpHandle.result(HttpResp(status = InternalServerError))
       }
 
-      def serve() : Free[PRG.Cop, Xor[RecvError, SendStatus]] =
+      def serve() : Free[PRG.Cop, Either[RecvError, SendStatus]] =
         for {
           recv  <-  HttpInteract.receive()
           _     <-  Log.info("HttpReceived Request:"+recv)
           res   <-  recv match {
-                      case Xor.Left(err) => HttpInteract.stop(Xor.left(err)).freek[PRG]
+                      case Left(err) => HttpInteract.stop(Left(err)).freek[PRG]
 
-                      case Xor.Right(req) =>
+                      case Right(req) =>
                         for {
                           resp  <-  handle(req)
                           _     <-  Log.info("Sending Response:"+resp)
                           ack   <-  HttpInteract.respond(resp)
                           res   <-  if(ack == Ack) serve()
-                                    else HttpInteract.stop(Xor.right(ack)).freek[PRG]
+                                    else HttpInteract.stop(Right(ack)).freek[PRG]
                         } yield (res)
                     }
         } yield (res)

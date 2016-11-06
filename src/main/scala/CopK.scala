@@ -1,7 +1,6 @@
 package freek
 
 import cats.~>
-import cats.data.Xor
 
 
 /** Higher-Kinded Coproduct (exactly like shapeless Coproduct but higher-kinded)
@@ -603,7 +602,7 @@ object Flattener extends FlattenerLower{
       type Out[t] = F[t]
 
       def flatten[A](tca: Free[In1[Free[F, ?], ?], A]): Free[F, A] = 
-        tca.foldMapUnsafe(new (In1[Free[F, ?], ?] ~> Free[F, ?]) {
+        tca.foldMap(new (In1[Free[F, ?], ?] ~> Free[F, ?]) {
           def apply[A](in: In1[Free[F, ?], A]): Free[F, A] = in match {
             case In1(free) => free
           }
@@ -617,7 +616,7 @@ object Flattener extends FlattenerLower{
       type Out[t] = O[t]
 
       def flatten[A](tca: Free[In2[Free[F, ?], R, ?], A]): Free[O, A] = 
-        tca.foldMapUnsafe(new (In2[Free[F, ?], R, ?] ~> Free[O, ?]) {
+        tca.foldMap(new (In2[Free[F, ?], R, ?] ~> Free[O, ?]) {
           def apply[A](in: In2[Free[F, ?], R, A]): Free[O, A] = in match {
             case In2l(free) => free.compile(new (F ~> O) {
               def apply[A](fa: F[A]): O[A] = ap(fa)
@@ -636,7 +635,7 @@ object Flattener extends FlattenerLower{
       type Out[t] = O2[t]
 
       def flatten[A](tca: Free[In3[Free[F, ?], M, R, ?], A]): Free[O2, A] = 
-        tca.foldMapUnsafe(new (In3[Free[F, ?], M, R, ?] ~> Free[O2, ?]) {
+        tca.foldMap(new (In3[Free[F, ?], M, R, ?] ~> Free[O2, ?]) {
           def apply[A](in: In3[Free[F, ?], M, R, A]): Free[O2, A] = in match {
             case In3l(free) => free.compile(new (F ~> O2) {
               def apply[A](fa: F[A]): O2[A] = ap2(ap1(fa))
@@ -661,7 +660,7 @@ trait FlattenerLower extends FlattenerLower2 {
       type Out[t] = O[t]
 
       def flatten[A](tca: Free[In2[L, Free[F, ?], ?], A]): Free[O, A] = 
-        tca.foldMapUnsafe(new (In2[L, Free[F, ?], ?] ~> Free[O, ?]) {
+        tca.foldMap(new (In2[L, Free[F, ?], ?] ~> Free[O, ?]) {
           def apply[A](in: In2[L, Free[F, ?], A]): Free[O, A] = in match {
             case In2l(l) => Free.liftF(pr.single(l))
 
@@ -680,7 +679,7 @@ trait FlattenerLower extends FlattenerLower2 {
       type Out[t] = O2[t]
 
       def flatten[A](tca: Free[In3[L, Free[F, ?], R, ?], A]): Free[O2, A] = 
-        tca.foldMapUnsafe(new (In3[L, Free[F, ?], R, ?] ~> Free[O2, ?]) {
+        tca.foldMap(new (In3[L, Free[F, ?], R, ?] ~> Free[O2, ?]) {
           def apply[A](in: In3[L, Free[F, ?], R, A]): Free[O2, A] = in match {
             case In3l(l) => Free.liftF(ap(pr.single(l)))
 
@@ -701,7 +700,7 @@ trait FlattenerLower extends FlattenerLower2 {
 
     def flatten[A](tca: Free[AppendK[L, R, ?], A]): Free[AppendK[O, R, ?], A] = 
 
-      tca.foldMapUnsafe(new (AppendK[L, R, ?] ~> Free[AppendK[O, R, ?], ?]) {
+      tca.foldMap(new (AppendK[L, R, ?] ~> Free[AppendK[O, R, ?], ?]) {
         def apply[A](in: AppendK[L, R, A]): Free[AppendK[O, R, ?], A] = in match {
           case Aplk(l) =>
             val free = Free.liftF(l)
@@ -727,7 +726,7 @@ trait FlattenerLower2 {
       type Out[t] = O2[t]
 
       def flatten[A](tca: Free[In3[L, M, Free[F, ?], ?], A]): Free[O2, A] = 
-        tca.foldMapUnsafe(new (In3[L, M, Free[F, ?], ?] ~> Free[O2, ?]) {
+        tca.foldMap(new (In3[L, M, Free[F, ?], ?] ~> Free[O2, ?]) {
           def apply[A](in: In3[L, M, Free[F, ?], A]): Free[O2, A] = in match {
             case In3l(l) => Free.liftF(pr2.single(l))
 
@@ -749,7 +748,7 @@ trait FlattenerLower2 {
 
     def flatten[A](tca: Free[AppendK[L, R, ?], A]): Free[AppendK[L, O, ?], A] = 
 
-      tca.foldMapUnsafe(new (AppendK[L, R, ?] ~> Free[AppendK[L, O, ?], ?]) {
+      tca.foldMap(new (AppendK[L, R, ?] ~> Free[AppendK[L, O, ?], ?]) {
         def apply[A](in: AppendK[L, R, A]): Free[AppendK[L, O, ?], A] = in match {
           case Aplk(l) =>
             Free.liftF(Aplk(l))

@@ -50,7 +50,7 @@ package object freek extends LowerImplicits with HK {
 
     def interpret[F2[_] <: CopK[_], G[_]: Monad](i: Interpreter[F2, G])(
       implicit sub:SubCop[F, F2]
-    ): G[A] = free.foldMapUnsafe(new (F ~> G) {
+    ): G[A] = free.foldMap(new (F ~> G) {
       def apply[A](fa: F[A]): G[A] = i.nat(sub(fa))
     })
 
