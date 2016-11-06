@@ -14,7 +14,7 @@
 > All versions are published to bintray https://bintray.com/projectseptemberinc/
 
 <br/>
-### v0.6.1:
+### v0.6.1/2:
 
 - added `Freekit`/`Freekito` helpers to reduce `.freek` boilerplate in basic cases
 - added `transpile` to flatten Free programs combining Free programs
