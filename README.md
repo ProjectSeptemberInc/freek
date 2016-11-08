@@ -95,6 +95,8 @@ scalaVersion := "2.12.0" // (or 2.11.8)
 
 resolvers += Resolver.bintrayRepo("projectseptemberinc", "maven")
 
+scalacOptions := Seq("-Ypartial-unification") //if running 2.12
+
 libraryDependencies ++= Seq(
   "com.projectseptember"            %% "freek"                        % "0.6.5"
 , "org.spire-math"                  %% "kind-projector"               % "0.7.1"
