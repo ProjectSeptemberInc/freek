@@ -1,12 +1,12 @@
 lazy val commonSettings = Seq(
     organization := "com.projectseptember"
-  , version := "0.6.5"
+  , version := "0.6.6"
   , resolvers ++= Seq(
       Resolver.mavenLocal
     , Resolver.sonatypeRepo("releases")
     , Resolver.sonatypeRepo("snapshots"))
   , scalaVersion := "2.11.8"
-  , crossScalaVersions := Seq("2.11.8", "2.12.0")
+  , crossScalaVersions := Seq("2.11.8", "2.12.0", "2.12.1")
   , bintrayOrganization := Some("projectseptemberinc")
   , licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
   , addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
