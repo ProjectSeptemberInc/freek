@@ -586,8 +586,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val interpreters = foo2Future :&: logger2Future :&: bar2Future :&: kvs2Future
 
-    Await.result(prg.value.interpret(interpreters), 10.seconds)
-  
+    Await.result(prg.value.interpret(interpreters), 10.seconds)  
   }  
 
   "freek" should "manage monadic onions of result types wrap/peelRight" in {
@@ -1119,6 +1118,7 @@ class AppSpec extends FlatSpec with Matchers {
 
     val r = Await.result(free.interpret(foo1Future :&: foo3Future :&: foo4Future), 2.seconds)
     println("r:"+r)
+    ()
   }
 
   // "freek" should "special case" in {

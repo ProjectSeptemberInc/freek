@@ -188,5 +188,24 @@ class FreekitSpec extends FlatSpec with Matchers {
 
     }
   }
+  "Freek" should "work" in {
+    import cats._
+    import cats.free.Free
+    import cats.implicits._
+
+    import freek._
+
+    object Test {
+      sealed trait Instruction[T]
+      // Seq[Int] doesn't represent and error but is the return type of Get
+      final case class Get() extends Instruction[List[Int]]
+
+      type PRG = Instruction :|: NilDSL
+      val PRG =  freek.DSL.Make[PRG]
+      type O = Option :&: List :&: Bulb
+
+      Get().freek[PRG].onionT[O]
+    }
+  }
 
 }
