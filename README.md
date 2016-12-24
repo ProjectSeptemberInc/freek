@@ -332,7 +332,7 @@ To prepend one or more DSL to an existing combination of DSL into a new program,
     for {
       _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
       name  <- KVS.Get(id).freek[PRG]
-      e     <- DB.findById(id).freek[PRG]
+      e     <- DBService.findById(id).expand[PRG]
       file  <- File.Get(e.file).freek[PRG]
       _     <- Log.debug(s"Found file:$file").freek[PRG]
     } yield (file)
