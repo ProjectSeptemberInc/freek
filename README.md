@@ -332,7 +332,7 @@ To prepend one or more DSL to an existing combination of DSL into a new program,
     for {
       _     <- Log.debug(s"Searching for value id: $id").freek[PRG]
       name  <- KVS.Get(id).freek[PRG]
-      e     <- DB.findById(id).freek[PRG]
+      e     <- DB.findById(id).expand[PRG]
       file  <- File.Get(e.file).freek[PRG]
       _     <- Log.debug(s"Found file:$file").freek[PRG]
     } yield (file)
@@ -343,7 +343,7 @@ Please note:
 
 - there is no `NilDSL` at the end because it's brought by `DBService.PRG`
 - `:|:` also appends a list of DSL at the end
-
+- the use of the `expand` function instead of `freek` for the findById operation, the `expand` function allows the use of a program defined with a smaller DSL in one with a bigger DSL
 
 
 <br/>
