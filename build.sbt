@@ -1,6 +1,6 @@
 lazy val commonSettings = Seq(
     organization := "com.projectseptember"
-  , version := "0.6.6"
+  , version := "0.6.7"
   , resolvers ++= Seq(
       Resolver.mavenLocal
     , Resolver.sonatypeRepo("releases")
@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
   )
   .settings(
     libraryDependencies ++= Seq(
-        "org.typelevel"   %%  "cats-free"  % "0.8.1"
+        "org.typelevel"   %%  "cats-free"  % "0.9.0"
       , "org.scalatest"   %%  "scalatest"  % "3.0.0"  % Test
     ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, scalaMajor)) if scalaMajor == 11 =>
