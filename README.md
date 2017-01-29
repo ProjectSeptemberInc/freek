@@ -688,7 +688,7 @@ Instead of `Foo2(i).freek[PRG].onionT[O].peelRight3`, you can write `Foo2(i).fre
 <br/>
 #### Bored adding `.free[PRG]` on each line? Use `Freekit` trick
 
-```
+```scala
 type PRG = Foo1 :|: Foo2 :|: Log :|: NilDSL
 val PRG = DSL.Make[PRG]
 
@@ -716,7 +716,7 @@ This works in basic cases & naturally as soon as you have embedded `for-comprehe
 <br/>
 #### Bored adding `.free[PRG].onionT[O]` on each line? Use `Freekito` trick
 
-```
+```scala
 type PRG = Foo1 :|: Foo2 :|: Log :|: NilDSL
 val PRG = DSL.Make[PRG]
 
